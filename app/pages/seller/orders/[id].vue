@@ -30,7 +30,7 @@
           icon="i-heroicons-arrow-path"
           :loading="saving"
           :disabled="!selected || selected === order.status"
-          @click="applyStatus"
+          @click="onApply"
         >
           Применить
         </UButton>
@@ -48,8 +48,18 @@
           </template>
 
           <ul class="divide-y divide-(--ui-border)">
-            <li v-for="item in order.items" :key="item.id" class="flex items-center gap-4 py-3">
-              <UAvatar :src="item.image ?? undefined" :alt="item.name" size="lg" />
+            <li v-for="item in order.items" :key="item.id" class="flex items-center gap-4 py-4">
+              <ULink :to="`/products/${item.productId}`">
+                <img
+                  v-if="item.image"
+                  :src="item.image"
+                  :alt="item.name"
+                  class="h-16 w-16 shrink-0 rounded-lg object-cover"
+                />
+                <div v-else class="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-subtle text-dimmed">
+                  <Icon name="i-heroicons-photo" class="h-6 w-6" />
+                </div>
+              </ULink>
               <div class="min-w-0 flex-1">
                 <ULink :to="`/products/${item.productId}`" class="font-medium hover:text-primary">
                   {{ item.name }}
@@ -114,6 +124,32 @@
         </UCard>
       </div>
     </div>
+
+    <UModal
+      v-model:open="confirmCancel"
+      :title="`Отменить заказ #${order.id.slice(-6)}?`"
+      description="Товары вернутся в остатки, а покупатель получит заказ со статусом «Отменён»."
+    >
+      <template #footer>
+        <div class="flex w-full justify-end gap-3">
+          <UButton
+            color="error"
+            variant="solid"
+            :loading="saving"
+            @click="confirmCancel = false; applyStatus()"
+          >
+            Отменить заказ
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="ghost"
+            @click="confirmCancel = false"
+          >
+            Вернуться
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 
   <div v-else class="space-y-4">
@@ -145,6 +181,7 @@
 
   const selected = ref<OrderStatus | undefined>(undefined);
   const saving = ref(false);
+  const confirmCancel = ref(false);
 
   const transitionItems = computed(() =>
     ALLOWED_TRANSITIONS[order.value!.status].map((s) => ({
@@ -154,6 +191,11 @@
   );
 
   const itemsQuantity = computed(() => order.value!.items.reduce((s, i) => s + i.quantity, 0));
+
+  function onApply() {
+    if (selected.value === 'CANCELLED') confirmCancel.value = true
+    else applyStatus()
+  }
 
   async function applyStatus() {
     if (!selected.value) return;
