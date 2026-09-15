@@ -585,7 +585,7 @@ enum OrderStatus {
 | 35 | `seller/dashboard.vue` — статистика (выручка, заказы) | Dev 1 | `useAsyncData`, серверные данные |
 | 36 | `seller/products/new.vue` — создание товара | Dev 1 | Forms, file upload |
 | 37 | `seller/products/index.vue` — список товаров + `seller/products/[id]/edit.vue` — редактирование | Dev 1 | CRUD UI, Nuxt UI DataTable |
-| 38 | `seller/orders/` — `index.vue` (заказы продавца) + `[id].vue` (детали, смена статуса) | Dev 1 | Status management |
+| 38 | `seller/orders/` — `index.vue` (заказы продавца) + `[id].vue` (детали, смена статуса) | Dev 1 ✅ | Status management |
 | 39 | `account/orders/` — `index.vue` (история покупок) + `[id].vue` (детали заказа) | Dev 1 | Order history |
 
 **Exit criteria:** Каталог → Добавление в корзину → Оформление → Заказ создан. Продавец видит товар и заказ в кабинете.
