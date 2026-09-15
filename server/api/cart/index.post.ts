@@ -2,8 +2,37 @@ import { prisma } from '#server/utils/prisma';
 import { requireUser } from '#server/utils/requireUser';
 import { addCartSchema } from '#shared/schemas/cart.schema';
 import { toCartItemDto, cartItemProductSelect } from '#server/utils/cart';
+import type { EventHandlerResponse } from 'h3';
+import { defineRouteMeta } from 'nitropack/runtime';
+import type { AddToCart, CartItem } from '#shared/schemas/cart.schema';
 
-export default defineEventHandler(async (event) => {
+defineRouteMeta({
+  openAPI: {
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['productId'],
+            properties: {
+              productId: { type: 'string' },
+              quantity: { type: 'integer', minimum: 1, default: 1 },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      '200': { description: 'Позиция добавлена/инкремент (кламп до stock)' },
+      '401': { description: 'Требуется авторизация' },
+      '404': { description: 'Товар не найден' },
+      '409': { description: 'Товар закончился' },
+    },
+  },
+});
+
+export default defineEventHandler<{ body: AddToCart }, EventHandlerResponse<CartItem>>(async (event) => {
   const userId = await requireUser(event);
   const body = await readValidatedBody(event, (data) => addCartSchema.parse(data));
 

@@ -1,7 +1,8 @@
 import { prisma } from '#server/utils/prisma';
 import { requireUser } from '#server/utils/requireUser';
+import type { EventHandlerResponse } from 'h3';
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler<object, EventHandlerResponse<{ ok: boolean }>>(async (event) => {
   const userId = await requireUser(event);
   const id = getRouterParam(event, 'id');
 
