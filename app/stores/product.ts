@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import type { Product, Category } from '#shared/schemas/product.schema';
-import { products, categories } from '#shared/mocks/products';
+import type { CatalogResponse } from '#shared/schemas/catalog.schema';
 
 export type SortKey = 'relevance' | 'priceAsc' | 'priceDesc' | 'rating';
 
@@ -15,6 +15,7 @@ export const useProductStore = defineStore('product', {
   state: () => ({
     items: [] as Product[],
     categories: [] as Category[],
+    total: 0,
     filters: {
       categoryId: null,
       q: '',
@@ -23,61 +24,46 @@ export const useProductStore = defineStore('product', {
     } as CatalogFilters,
     sort: 'relevance' as SortKey,
     page: 1,
-    perPage: 12, // 36 товаров → ровно 3 страницы
-    loaded: false, // кэш-флаг: повторный fetch не перезатирает данные
+    perPage: 12,
+    categoriesLoaded: false,
   }),
 
   getters: {
-    filtered(): Product[] {
-      const { q, categoryId, priceMin, priceMax } = this.filters;
-      const query = q.trim().toLowerCase();
-      return this.items.filter((p) => {
-        const byQ =
-          !query ||
-          p.name.toLowerCase().includes(query) ||
-          p.description.toLowerCase().includes(query);
-        const byCategory = !categoryId || p.category.id === categoryId;
-        const byMin = priceMin === null || p.price >= priceMin;
-        const byMax = priceMax === null || p.price <= priceMax;
-        return byQ && byCategory && byMin && byMax;
-      });
-    },
-    sorted(): Product[] {
-      const arr = [...this.filtered];
-      switch (this.sort) {
-        case 'priceAsc':
-          return arr.sort((a, b) => a.price - b.price);
-        case 'priceDesc':
-          return arr.sort((a, b) => b.price - a.price);
-        case 'rating':
-          return arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-        default:
-          return arr; // relevance = порядок 'как в данных'
-      }
-    },
-    paginated(): Product[] {
-      const start = (this.page - 1) * this.perPage;
-      return this.sorted.slice(start, start + this.perPage);
-    },
-    total(): number {
-      return this.filtered.length;
-    },
-    totalPages(): number {
-      return Math.max(1, Math.ceil(this.total / this.perPage));
+    queryKey(): string {
+      return [
+        this.filters.q,
+        this.filters.categoryId ?? '',
+        this.filters.priceMin ?? '',
+        this.filters.priceMax ?? '',
+        this.sort,
+        this.page,
+        this.perPage,
+      ].join('|');
     },
   },
 
   actions: {
-    // TODO(api): после появления API заменить на:
-    // const data = await $fetch<{ products: Product[]; categories: Category[] }>('/api/products')
-    // и убрать import моков сверху.
-    async fetch(): Promise<Product[]> {
-      if (this.loaded) return this.items;
-      const data = await Promise.resolve({ products, categories });
+    async fetchCategories() {
+      if (this.categoriesLoaded) return;
+      this.categories = await $fetch<Category[]>('/api/categories');
+      this.categoriesLoaded = true;
+    },
+    async fetchProducts(): Promise<Product[]> {
+      const { q, categoryId, priceMin, priceMax } = this.filters;
+      const data = await $fetch<CatalogResponse>('/api/products', {
+        query: {
+          q: q || undefined,
+          categoryId: categoryId ?? undefined,
+          priceMin: priceMin ?? undefined,
+          priceMax: priceMax ?? undefined,
+          sort: this.sort,
+          page: this.page,
+          perPage: this.perPage,
+        },
+      });
       this.items = data.products;
-      this.categories = data.categories;
-      this.loaded = true;
-      return this.items;
+      this.total = data.total;
+      return data.products;
     },
     setCategory(categoryId: string | null) {
       this.filters.categoryId = categoryId;
