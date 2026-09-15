@@ -7,7 +7,7 @@
 
     <CatalogFilters @reset="reset" />
 
-    <ProductGrid :items="paginated" :loading="pending" @reset="reset" />
+    <ProductGrid :items="items" :loading="pending" @reset="reset" />
 
     <div class="mt-8 flex justify-center">
       <UPagination
@@ -23,12 +23,17 @@
 
 <script setup lang="ts">
   const store = useProductStore();
-
   store.resetFilters();
-  const { pending } = await useAsyncData('products-catalog', () => store.fetch(), {
-    default: () => [],
-  });
-  const { paginated, total, perPage } = storeToRefs(store);
+  store.fetchCategories();
+
+  const { queryKey, items, total, perPage } = storeToRefs(store);
+  const { pending, refresh } = await useAsyncData(
+    'catalog-index',
+    () => store.fetchProducts(),
+    { getCachedData: () => undefined, default: () => [] },
+  );
+  onMounted(() => refresh()); // форс-фетч при каждом монтаже - стор всегда синхронен
+  watch(queryKey, () => refresh()); // любая смена фильтра/сортировки/страницы - перезапрос
 
   const page = computed({
     get: () => store.page,

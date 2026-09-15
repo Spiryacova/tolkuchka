@@ -556,7 +556,7 @@ enum OrderStatus {
 | # | Задача | Кто | Ключевые темы |
 |---|--------|-----|---------------|
 | 19 | Prisma schema: модель `Category` + `Product.categoryId` (связь, индексы, `@@map`), миграция `add_catalog`, seed: категории + 54 товара (идемпотентный `upsert`) | Dev 1 ✅ | Prisma, seed script |
-| 20 | `server/api/products/index.get.ts` — пагинация, фильтры (категория через `categoryId`, цена, поиск) + `server/api/categories/index.get.ts` и `[slug].get.ts` | Dev 1 | Server API, query params, Prisma |
+| 20 | `server/api/products/index.get.ts` + `[slug].get.ts`, категории, zod-схема запроса, стор и страницы на серверных фильтрах/пагинации | Dev 1 ✅ | Server API, query params, Prisma, zod |
 | 21 | Pinia store `products.ts` — каталог, фильтры, кэш — ✅ PR #6 (на ревью) | Dev 1 | Pinia getters, caching |
 | 22 | `pages/products/index.vue` — каталог, фильтры, сортировка (ISR) + `pages/categories/[slug].vue` — страница категории (ISR) — ✅ PR #6 (на ревью) | Dev 1 | `useAsyncData`, ISR, routeRules |
 | 23 | `pages/products/[slug].vue` — карточка товара (SSR) — ✅ | Dev 2 | Dynamic routes, definePageMeta |
