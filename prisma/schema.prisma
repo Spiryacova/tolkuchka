@@ -112,6 +112,8 @@ model Product {
 
   cartItems CartItem[]
 
+  cartItems CartItem[]
+
   @@index([categoryId]) // главный сценарий: фильтр по категории
   @@index([sellerId]) // кабинет продавца: его товары
   @@map("products")
