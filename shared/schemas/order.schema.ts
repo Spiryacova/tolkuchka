@@ -69,6 +69,7 @@ export const sellerOrderSummarySchema = z.object({
   status: orderStatusSchema,
   sellerTotal: z.number().nonnegative(),
   itemCount: z.number().int().nonnegative(),
+  totalQuantity: z.number().int().nonnegative(),
   createdAt: z.string(),
 });
 

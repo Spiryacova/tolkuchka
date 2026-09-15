@@ -24,33 +24,33 @@
 
     <template v-else-if="data && data.total > 0">
       <UCard :ui="{ body: 'p-0' }">
-        <UDataTable :rows="data.items" :columns="columns" :loading="pending">
-          <template #id-header>Заказ</template>
-          <template #sellerTotal-header>Сумма</template>
-
-          <template #id="{ row }">
-            <ULink :to="`/seller/orders/${row.id}`" class="font-medium text-primary">
-              #{{ row.id.slice(-6) }}
+        <UTable :data="data.items" :columns="columns" :loading="pending">
+          <template #loading>
+            <USkeleton class="h-10 w-full" />
+          </template>
+          <template #id-cell="{ row }">
+            <ULink :to="`/seller/orders/${row.original.id}`" class="font-medium text-primary">
+              #{{ row.original.id.slice(-6) }}
             </ULink>
           </template>
-          <template #buyerName="{ row }">
-            {{ row.buyerName ?? 'Без имени' }}
+          <template #buyerName-cell="{ row }">
+            {{ row.original.buyerName ?? 'Без имени' }}
           </template>
-          <template #itemCount="{ row }">
-            {{ row.itemCount }}
+          <template #itemCount-cell="{ row }">
+            {{ row.original.itemCount }} поз. · {{ row.original.totalQuantity }} шт.
           </template>
-          <template #sellerTotal="{ row }">
-            <span class="font-medium">{{ formatPrice(row.sellerTotal) }}</span>
+          <template #sellerTotal-cell="{ row }">
+            <span class="font-medium">{{ formatPrice(row.original.sellerTotal) }}</span>
           </template>
-          <template #status="{ row }">
-            <UBadge :color="orderStatusColor(row.status)" variant="subtle">
-              {{ orderStatusLabel(row.status) }}
+          <template #status-cell="{ row }">
+            <UBadge :color="orderStatusColor(row.original.status)" variant="subtle">
+              {{ orderStatusLabel(row.original.status) }}
             </UBadge>
           </template>
-          <template #createdAt="{ row }">
-            <span class="whitespace-nowrap text-sm text-muted">{{ formatDate(row.createdAt) }}</span>
+          <template #createdAt-cell="{ row }">
+            <span class="whitespace-nowrap text-sm text-muted">{{ formatDate(row.original.createdAt) }}</span>
           </template>
-        </UDataTable>
+        </UTable>
       </UCard>
 
       <div v-if="data.total > perPage" class="mt-6 flex justify-center">
@@ -66,7 +66,7 @@
 
     <template v-else>
       <UCard>
-        <UEmptyState
+        <UEmpty
           :icon="tab === 'ALL' ? 'i-heroicons-receipt-percent' : 'i-heroicons-inbox'"
           :title="tab === 'ALL' ? 'Заказов пока нет' : 'В этой категории нет заказов'"
           :description="tab === 'ALL' ? 'Когда покупатели оформят заказы на ваши товары, они появятся здесь.' : 'Попробуйте выбрать другой статус.'"
@@ -77,7 +77,8 @@
 </template>
 
 <script setup lang="ts">
-  import type { OrderStatus, SellerOrderListResponse } from '#shared/schemas/order.schema';
+  import type { OrderStatus, SellerOrderListResponse, SellerOrderSummary } from '#shared/schemas/order.schema';
+  import type { ColumnDef } from '@tanstack/vue-table';
   import { ORDER_STATUSES } from '#shared/schemas/order.schema';
 
   definePageMeta({
@@ -128,12 +129,12 @@
     ];
   });
 
-  const columns = [
-    { key: 'id', label: 'Заказ' },
-    { key: 'buyerName', label: 'Покупатель' },
-    { key: 'itemCount', label: 'Позиции' },
-    { key: 'sellerTotal', label: 'Сумма' },
-    { key: 'status', label: 'Статус' },
-    { key: 'createdAt', label: 'Дата' },
+  const columns: ColumnDef<SellerOrderSummary>[] = [
+    { accessorKey: 'id', header: 'Заказ' },
+    { accessorKey: 'buyerName', header: 'Покупатель' },
+    { accessorKey: 'itemCount', header: 'Позиции · шт' },
+    { accessorKey: 'sellerTotal', header: 'Сумма' },
+    { accessorKey: 'status', header: 'Статус' },
+    { accessorKey: 'createdAt', header: 'Дата' },
   ];
 </script>

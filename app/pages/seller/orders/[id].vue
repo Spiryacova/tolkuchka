@@ -43,7 +43,7 @@
           <template #header>
             <div class="flex items-center justify-between">
               <h2 class="font-semibold">Товары</h2>
-              <span class="text-sm text-muted">{{ order.items.length }} поз.</span>
+              <span class="text-sm text-muted">{{ order.items.length }} поз. · {{ itemsQuantity }} шт.</span>
             </div>
           </template>
 
@@ -152,6 +152,8 @@
       value: s,
     })),
   );
+
+  const itemsQuantity = computed(() => order.value!.items.reduce((s, i) => s + i.quantity, 0));
 
   async function applyStatus() {
     if (!selected.value) return;

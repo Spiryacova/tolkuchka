@@ -75,6 +75,7 @@ export default defineEventHandler<object, EventHandlerResponse<SellerOrderListRe
       o.items.reduce((sum, i) => sum.add(i.priceAtPurchase.mul(i.quantity)), new Prisma.Decimal(0)),
     ),
     itemCount: o.items.length,
+    totalQuantity: o.items.reduce((sum, i) => sum + i.quantity, 0),
     createdAt: o.createdAt.toISOString(),
   }));
 
