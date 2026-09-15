@@ -576,7 +576,7 @@ enum OrderStatus {
 
 | # | Задача | Кто | Ключевые темы |
 |---|--------|-----|---------------|
-| 29 | `server/api/cart/*` — CRUD корзины (Prisma транзакции) | Dev 1 | Server API, Prisma |
+| 29 | `server/api/cart/*` — CRUD корзины (Prisma транзакции) | Dev 1 ✅ | Server API, Prisma |
 | 30 | Pinia store `cart.ts` + `composables/useCart.ts` — клиентская корзина | Dev 1 | Pinia actions, SSR-safe |
 | 31 | Страница `cart.vue` — отображение, изменение количества (Nuxt UI таблица) | Dev 1 | Forms, Nuxt UI |
 | 32 | `pages/checkout/` — `index.vue` (оформление, адрес, подтверждение) + `success.vue` (подтверждение заказа) | Dev 1 | Form validation, middleware |

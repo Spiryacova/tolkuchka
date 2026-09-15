@@ -29,6 +29,7 @@ model User {
   accounts Account[]
   sessions Session[]
   products Product[]
+  cartItems CartItem[]
 
   @@map("users")
 }
@@ -106,7 +107,23 @@ model Product {
   seller   User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id])
 
+  cartItems CartItem[]
+
   @@index([categoryId]) // главный сценарий: фильтр по категории
   @@index([sellerId]) // кабинет продавца: его товары
   @@map("products")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
 }
