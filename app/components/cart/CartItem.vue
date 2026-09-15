@@ -55,7 +55,7 @@
 
         <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
           <UInputNumber
-            :model-value="line.qty"
+            :model-value="line.quantity"
             :min="1"
             :max="unavailable ? 1 : line.product.stock ?? 0"
             :disabled="unavailable"
@@ -70,9 +70,9 @@
 </template>
 
 <script setup lang="ts">
-  import type { CartLine } from '#shared/schemas/cart.schema';
+  import type { CartItem } from '#shared/schemas/cart.schema';
 
-  const props = defineProps<{ line: CartLine }>();
+  const props = defineProps<{ line: CartItem }>();
   const emit = defineEmits<{
     'update-qty': [value: number];
     remove: [];
@@ -82,7 +82,7 @@
 
   const formatPrice = (value: number) => `${value.toLocaleString('ru-RU')} ₽`;
   const formatLineTotal = computed(() =>
-    formatPrice(props.line.product.price * props.line.qty),
+    formatPrice(props.line.product.price * props.line.quantity),
   );
 
   function onQtyChange(value: unknown) {

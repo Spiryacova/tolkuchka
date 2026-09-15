@@ -93,6 +93,8 @@
   const cart = useCartStore();
   const { count: cartCount } = storeToRefs(cart);
   const { data: session, status, signOut } = useAuth();
+
+  watch(() => status.value, () => cart.load());
   const user = computed(() => session.value?.user);
 
   const accountItems = computed(() => [

@@ -12,17 +12,21 @@ export const updateCartItemSchema = z.object({
 export type AddToCart = z.output<typeof addCartSchema>;
 export type UpdateCartItem = z.output<typeof updateCartItemSchema>;
 
+export const cartProductSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  price: z.number().positive(),
+  imageUrl: z.string().nullable(),
+  stock: z.number().int(),
+});
+
+export type CartProduct = z.output<typeof cartProductSchema>;
+
 export const cartItemSchema = z.object({
   id: z.string(),
   quantity: z.number().int(),
-  product: z.object({
-    id: z.string(),
-    slug: z.string(),
-    name: z.string(),
-    price: z.number().positive(),
-    imageUrl: z.string().nullable(),
-    stock: z.number().int(),
-  }),
+  product: cartProductSchema,
 });
 
 export type CartItem = z.output<typeof cartItemSchema>;

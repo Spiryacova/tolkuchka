@@ -46,33 +46,25 @@
 </template>
 
 <script setup lang="ts">
-  import type { CartLine } from '#shared/schemas/cart.schema';
+  import type { CartItem } from '#shared/schemas/cart.schema';
 
   const cart = useCartStore();
   const { items, isLoading } = storeToRefs(cart);
-  const productStore = useProductStore();
-
-  await useAsyncData('cart-products', () => productStore.fetch(), {
-    default: () => [],
-  });
+  const { status } = useAuth();
 
   onMounted(() => cart.load());
+  watch(() => status.value, () => cart.load());
 
-  const lines = computed<CartLine[]>(() =>
-    items.value.flatMap((item) => {
-      const product = productStore.items.find((p) => p.id === item.id);
-      return product ? [{ ...item, product }] : [];
-    }),
-  );
+  const lines = computed(() => items.value);
 
-  const available = computed<CartLine[]>(() =>
+  const available = computed(() =>
     lines.value.filter((line) => (line.product.stock ?? 0) > 0),
   );
-  const unavailable = computed<CartLine[]>(() =>
+  const unavailable = computed(() =>
     lines.value.filter((line) => (line.product.stock ?? 0) === 0),
   );
   const totalQty = computed(() =>
-    available.value.reduce((sum, line) => sum + line.qty, 0),
+    available.value.reduce((sum, line) => sum + line.quantity, 0),
   );
 
   const toast = useToast();
@@ -84,7 +76,7 @@
     await cart.updateQty(id, next);
   }
 
-  async function onRemove(line: CartLine) {
+  async function onRemove(line: CartItem) {
     await cart.remove(line.id);
     toast.add({
       title: 'Товар удалён',
@@ -92,7 +84,7 @@
       actions: [
         {
           label: 'Вернуть',
-          onClick: () => cart.addToCart(line.id, line.qty),
+          onClick: () => cart.addToCart(line.product.id, line.quantity),
         },
       ],
     });

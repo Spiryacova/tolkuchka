@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
-import type { CartItem } from '#shared/schemas/cart.schema';
+import type { CartItem, CartResponse } from '#shared/schemas/cart.schema';
 
-let hydrated = false; // SSR-гард: корзина живёт только на клиенте
+// Единственный источник данных — server/api/cart/* (#29). SSR-гард: корзина живёт на клиенте.
+let inflight: Promise<void> | null = null;
 
 export const useCartStore = defineStore('cart', {
   state: () => ({
@@ -11,35 +12,54 @@ export const useCartStore = defineStore('cart', {
 
   getters: {
     count(): number {
-      return this.items.reduce((sum, item) => sum + item.qty, 0);
+      return this.items.reduce((sum, item) => sum + item.quantity, 0);
+    },
+    subtotal(): number {
+      return this.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
     },
   },
 
   actions: {
-    async load() {
-      if (!import.meta.client || hydrated) return;
+    async refresh() {
+      if (!import.meta.client) return;
+      if (inflight) return inflight;
       this.isLoading = true;
-      try {
-        // TODO(#29): после появления CRUD корзины на бэке заменить на:
-        // this.items = await $fetch<CartItem[]>('/api/cart')
-      } finally {
-        this.isLoading = false;
-        hydrated = true;
-      }
+      inflight = (async () => {
+        try {
+          const cart = await $fetch<CartResponse>('/api/cart');
+          this.items = cart.items;
+        } catch {
+          // 401 для гостя — корзина пуста (гостевая ветка появится в Фазе B)
+          this.items = [];
+        } finally {
+          this.isLoading = false;
+          inflight = null;
+        }
+      })();
+      return inflight;
     },
-    async addToCart(id: string, qty: number) {
-      // TODO(#29): заменить на $fetch POST /api/cart + sync стейта с ответом
-      const existing = this.items.find((item) => item.id === id);
-      if (existing) existing.qty += qty;
-      else this.items.push({ id, qty });
+    async load() {
+      await this.refresh();
+    },
+    async addToCart(productId: string, qty: number) {
+      const item = await $fetch<CartItem>('/api/cart', {
+        method: 'POST',
+        body: { productId, quantity: qty },
+      });
+      const index = this.items.findIndex((i) => i.id === item.id);
+      if (index !== -1) this.items[index] = item;
+      else this.items.push(item);
     },
     async updateQty(id: string, qty: number) {
-      // TODO(#29): заменить на $fetch PATCH /api/cart/[id]
-      const item = this.items.find((i) => i.id === id);
-      if (item) item.qty = Math.max(1, qty);
+      const item = await $fetch<CartItem>(`/api/cart/${id}`, {
+        method: 'PATCH',
+        body: { quantity: qty },
+      });
+      const index = this.items.findIndex((i) => i.id === item.id);
+      if (index !== -1) this.items[index] = item;
     },
     async remove(id: string) {
-      // TODO(#29): заменить на $fetch DELETE /api/cart/[id]
+      await $fetch(`/api/cart/${id}`, { method: 'DELETE' });
       const index = this.items.findIndex((i) => i.id === id);
       if (index !== -1) this.items.splice(index, 1);
     },

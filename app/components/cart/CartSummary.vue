@@ -39,15 +39,15 @@
 </template>
 
 <script setup lang="ts">
-  import type { CartLine } from '#shared/schemas/cart.schema';
+  import type { CartItem } from '#shared/schemas/cart.schema';
 
   const props = defineProps<{
-    lines: CartLine[];
+    lines: CartItem[];
     unavailableCount: number;
   }>();
 
   const subtotal = computed(() =>
-    props.lines.reduce((sum, line) => sum + line.product.price * line.qty, 0),
+    props.lines.reduce((sum, line) => sum + line.product.price * line.quantity, 0),
   );
   const checkoutDisabled = computed(
     () => props.lines.length === 0 || props.unavailableCount > 0,
