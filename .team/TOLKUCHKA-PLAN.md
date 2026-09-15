@@ -556,7 +556,7 @@ enum OrderStatus {
 | # | Задача | Кто | Ключевые темы |
 |---|--------|-----|---------------|
 | 19 | Prisma schema: модель `Category` + `Product.categoryId` (связь, индексы, `@@map`), миграция `add_catalog`, seed: категории + 54 товара (идемпотентный `upsert`) | Dev 1 ✅ | Prisma, seed script |
-| 20 | `server/api/products/index.get.ts` — пагинация, фильтры (категория через `categoryId`, цена, поиск) + `server/api/categories/index.get.ts` и `[slug].get.ts` | Dev 1 | Server API, query params, Prisma |
+| 20 | `server/api/products/index.get.ts` + `[slug].get.ts`, категории, zod-схема запроса, стор и страницы на серверных фильтрах/пагинации | Dev 1 ✅ | Server API, query params, Prisma, zod |
 | 21 | Pinia store `products.ts` — каталог, фильтры, кэш — ✅ PR #6 (на ревью) | Dev 1 | Pinia getters, caching |
 | 22 | `pages/products/index.vue` — каталог, фильтры, сортировка (ISR) + `pages/categories/[slug].vue` — страница категории (ISR) — ✅ PR #6 (на ревью) | Dev 1 | `useAsyncData`, ISR, routeRules |
 | 23 | `pages/products/[slug].vue` — карточка товара (SSR) — ✅ | Dev 2 | Dynamic routes, definePageMeta |
@@ -576,11 +576,11 @@ enum OrderStatus {
 
 | # | Задача | Кто | Ключевые темы |
 |---|--------|-----|---------------|
-| 29 | `server/api/cart/*` — CRUD корзины (Prisma транзакции) | Dev 1 | Server API, Prisma |
-| 30 | Pinia store `cart.ts` (`useCartStore`) — клиентская корзина | Dev 1 | Pinia actions, SSR-safe |
+| 29 | `server/api/cart/*` — CRUD корзины (Prisma транзакции) | Dev 1 ✅ | Server API, Prisma |
+| 30 | Pinia store `cart.ts` + `composables/useCart.ts` — клиентская корзина | Dev 1 | Pinia actions, SSR-safe |
 | 31 | Страница `cart.vue` — отображение, изменение количества (Nuxt UI таблица) | Dev 1 | Forms, Nuxt UI |
 | 32 | `pages/checkout/` — `index.vue` (оформление, адрес, подтверждение) + `success.vue` (подтверждение заказа) | Dev 1 | Form validation, middleware |
-| 33 | `server/api/orders/index.post.ts` — создание заказа (Prisma транзакция) | Dev 1 | Server transactions, error handling |
+| 33 | `server/api/orders/index.post.ts` — создание заказа (Prisma транзакция) | Dev 1 ✅ | Server transactions, error handling |
 | 34 | Pinia store `seller.ts` — статистика продавца | Dev 1 | Pinia getters, вычисления |
 | 35 | `seller/dashboard.vue` — статистика (выручка, заказы) | Dev 1 | `useAsyncData`, серверные данные |
 | 36 | `seller/products/new.vue` — создание товара | Dev 1 | Forms, file upload |

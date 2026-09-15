@@ -7,7 +7,7 @@
 
     <CatalogFilters :show-category-filter="false" @reset="reset" />
 
-    <ProductGrid :items="paginated" :loading="pending" :show-reset="false" />
+    <ProductGrid :items="items" :loading="pending" :show-reset="false" />
 
     <div class="mt-8 flex justify-center">
       <UPagination
@@ -27,23 +27,28 @@
   const store = useProductStore();
   const route = useRoute();
 
-  const { pending } = await useAsyncData('products-catalog', () => store.fetch(), {
-    default: () => [],
-  });
-  const { paginated, total, perPage } = storeToRefs(store);
+  const { data: categoryData, error } = await useAsyncData(
+    'category-' + route.params.slug,
+    () => $fetch<Category>(`/api/categories/${route.params.slug}`),
+  );
+  if (error.value) throw createError({ statusCode: 404, statusMessage: 'Категория не найдена' });
 
-  function findCategory(slug: string | string[] | undefined): Category {
-    const category = store.categories.find((c) => c.slug === slug);
-    if (!category) throw createError({ statusCode: 404, statusMessage: 'Категория не найдена' });
-    return category;
-  }
+  const category = computed(() => categoryData.value!);
 
-  const category = computed(() => findCategory(route.params.slug));
+  store.applyCategory(category.value.id);
+
+  const { queryKey, items, total, perPage } = storeToRefs(store);
+  const { pending, refresh } = await useAsyncData(
+    'catalog-category-' + route.params.slug,
+    () => store.fetchProducts(),
+    { getCachedData: () => undefined, default: () => [] },
+  );
+  onMounted(() => refresh());
+  watch(queryKey, () => refresh());
 
   watch(
-    () => route.params.slug,
-    () => store.applyCategory(category.value.id),
-    { immediate: true },
+    () => category.value?.id,
+    (id) => { if (id) store.applyCategory(id); },
   );
 
   const page = computed({

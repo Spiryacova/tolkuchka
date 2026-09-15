@@ -86,17 +86,24 @@
 </template>
 
 <script setup lang="ts">
+  import type { Product } from '#shared/schemas/product.schema';
+  import type { CatalogResponse } from '#shared/schemas/catalog.schema';
 
-  const store = useProductStore();
   const route = useRoute();
 
-  await useAsyncData(`product-${route.params.slug}`, () => store.fetch(), {
-    default: () => [],
-  });
+  const { data: product, error } = await useAsyncData(
+    'product-' + route.params.slug,
+    () => $fetch<Product>(`/api/products/${route.params.slug}`),
+  );
+  if (error.value) throw createError({ statusCode: 404, statusMessage: 'Товар не найден' });
 
-  const product = computed(() => store.items.find((p) => p.slug === route.params.slug) ?? null);
-
-  if (!product.value) throw createError({ statusCode: 404, statusMessage: 'Товар не найден' });
+  const { data: relatedData } = await useAsyncData(
+    'related-' + route.params.slug,
+    () => $fetch<CatalogResponse>('/api/products', {
+      query: { categoryId: product.value!.category.id, perPage: 5 },
+    }),
+    { watch: [() => product.value?.category.id] },
+  );
 
   const breadcrumbs = computed(() => [
     { label: 'Каталог', to: '/products' },
@@ -104,12 +111,8 @@
     { label: product.value!.name },
   ]);
 
-  const related = computed(() =>
-    store.items
-      .filter(
-        (p) => p.category.id === product.value!.category.id && p.id !== product.value!.id,
-      )
-      .slice(0, 4),
+  const related = computed(
+    () => relatedData.value?.products.filter((p) => p.id !== product.value!.id).slice(0, 4) ?? [],
   );
 
   const quantity = ref(1);

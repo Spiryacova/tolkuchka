@@ -29,6 +29,9 @@ model User {
   accounts Account[]
   sessions Session[]
   products Product[]
+  cartItems CartItem[]
+  buyerOrders  Order[]     @relation("BuyerOrders")
+  sellerOrders OrderItem[]
 
   @@map("users")
 }
@@ -105,8 +108,64 @@ model Product {
 
   seller   User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   category Category @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+
+  cartItems CartItem[]
 
   @@index([categoryId]) // главный сценарий: фильтр по категории
   @@index([sellerId]) // кабинет продавца: его товары
   @@map("products")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  buyerId         String      @map("buyer_id")
+  total           Decimal     @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING)
+  shippingAddress Json?       @map("shipping_address")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  buyer      User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  items      OrderItem[]
+
+  @@index([buyerId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String  @id @default(cuid())
+  orderId          String  @map("order_id")
+  productId        String  @map("product_id")
+  sellerId         String  @map("seller_id")
+  quantity         Int
+  priceAtPurchase  Decimal @db.Decimal(10, 2) @map("price_at_purchase")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+  seller  User    @relation(fields: [sellerId], references: [id])
+
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }

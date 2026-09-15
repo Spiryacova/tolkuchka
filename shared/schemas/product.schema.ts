@@ -1,10 +1,5 @@
 import * as z from 'zod';
 
-/**
- * Контракт каталога (task 21–22). После появления API (task 20)
- * эти же типы вернёт server/api/products.
- */
-
 export const categorySchema = z.object({
   id: z.string(),
   slug: z.string(),

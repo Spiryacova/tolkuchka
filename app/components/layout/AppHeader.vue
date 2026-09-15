@@ -112,7 +112,5 @@
     store.categories.map((c) => ({ label: c.name, to: `/categories/${c.slug}` })),
   );
 
-  if (!store.loaded) await store.fetch();
-
-  onMounted(() => cart.load());
+  await store.fetchCategories();
 </script>
