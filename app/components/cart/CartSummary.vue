@@ -19,6 +19,17 @@
 
       <div class="flex flex-col gap-2 pt-2">
         <UButton
+          v-if="isGuest"
+          color="primary"
+          variant="solid"
+          class="w-full"
+          :to="{ path: '/auth/login', query: { redirect: '/cart' } }"
+          :disabled="checkoutDisabled"
+        >
+          Войти и оформить
+        </UButton>
+        <UButton
+          v-else
           color="primary"
           variant="solid"
           class="w-full"
@@ -30,7 +41,13 @@
         <UButton color="neutral" variant="ghost" class="w-full" to="/products">
           Продолжить покупки
         </UButton>
-        <p v-if="unavailableCount > 0" class="text-center text-xs text-muted">
+        <p
+          v-if="isGuest && !checkoutDisabled"
+          class="text-center text-xs text-muted"
+        >
+          При входе ваши корзины объединятся
+        </p>
+        <p v-else-if="unavailableCount > 0" class="text-center text-xs text-muted">
           Уберите позиции «Нет в наличии», чтобы оформить заказ
         </p>
       </div>
@@ -44,6 +61,7 @@
   const props = defineProps<{
     lines: CartItem[];
     unavailableCount: number;
+    isGuest?: boolean;
   }>();
 
   const subtotal = computed(() =>

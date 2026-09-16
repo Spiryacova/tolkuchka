@@ -97,6 +97,7 @@
 
   const route = useRoute();
   const { signIn } = useAuth();
+  const cart = useCartStore();
 
   const state = reactive<RegisterSchema>({
     name: '',
@@ -123,6 +124,8 @@
         redirect: false,
       });
       if (res?.error) throw new Error(res.error);
+
+      await cart.mergeGuestCart();
 
       toast.add({
         title: 'Успешно',

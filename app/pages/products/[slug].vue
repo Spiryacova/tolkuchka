@@ -122,7 +122,7 @@
   async function addToCart() {
     const stock = product.value!.stock ?? 0;
     const qty = Math.min(quantity.value, stock);
-    await cart.addToCart(product.value!.id, qty);
+    await cart.addToCart(product.value!.id, qty, product.value!);
     if (qty < quantity.value) {
       toast.add({ title: `Доступно только ${stock} шт.`, color: 'warning' });
     }

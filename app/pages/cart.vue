@@ -25,7 +25,10 @@
     <template v-else>
       <header class="mb-8 flex items-baseline justify-between gap-4">
         <h1 class="text-2xl font-semibold sm:text-3xl">Корзина</h1>
-        <span class="text-sm text-muted">{{ totalQty }} шт.</span>
+        <div class="flex flex-col items-end gap-1">
+          <span class="text-sm text-muted">{{ totalQty }} шт.</span>
+          <span v-if="isRevalidating" class="text-xs text-muted">Обновляем цены…</span>
+        </div>
       </header>
 
       <div class="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
@@ -39,7 +42,11 @@
           />
         </div>
 
-        <CartSummary :lines="available" :unavailable-count="unavailable.length" />
+        <CartSummary
+          :lines="available"
+          :unavailable-count="unavailable.length"
+          :is-guest="isGuest"
+        />
       </div>
     </template>
   </div>
@@ -49,11 +56,16 @@
   import type { CartItem } from '#shared/schemas/cart.schema';
 
   const cart = useCartStore();
-  const { items, isLoading } = storeToRefs(cart);
+  const { items, isLoading, isRevalidating, isGuest } = storeToRefs(cart);
   const { status } = useAuth();
 
-  onMounted(() => cart.load());
-  watch(() => status.value, () => cart.load());
+  onMounted(() => syncCart());
+  watch(() => status.value, () => syncCart());
+
+  async function syncCart() {
+    await cart.load();
+    if (cart.source === 'guest') await cart.revalidateGuestLines();
+  }
 
   const lines = computed(() => items.value);
 

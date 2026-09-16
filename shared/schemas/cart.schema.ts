@@ -36,3 +36,19 @@ export const cartResponseSchema = z.object({
 });
 
 export type CartResponse = z.output<typeof cartResponseSchema>;
+
+// Гостевая корзина повторяет API-форму (сервер — источник истины структуры).
+// id = productId: серверного row-id у гостя нет, но по одному productId на товар в корзине.
+export const guestCartItemSchema = z.object({
+  id: z.string().min(1),
+  quantity: z.number().int().positive(),
+  product: cartProductSchema,
+});
+
+export type GuestCartItem = z.output<typeof guestCartItemSchema>;
+
+export const guestCartSchema = z.object({
+  items: z.array(guestCartItemSchema),
+});
+
+export type GuestCart = z.output<typeof guestCartSchema>;
