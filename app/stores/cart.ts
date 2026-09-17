@@ -12,14 +12,6 @@ import {
 
 type CartSource = 'idle' | 'guest' | 'server';
 
-let inflight: Promise<void> | null = null;
-
-function currentSource(): CartSource {
-  if (!import.meta.client) return 'idle';
-  const { status } = useAuth();
-  return status.value === 'authenticated' ? 'server' : status.value === 'unauthenticated' ? 'guest' : 'idle';
-}
-
 function toCartProduct(product: Product): CartProduct {
   return {
     id: product.id,
@@ -31,164 +23,217 @@ function toCartProduct(product: Product): CartProduct {
   };
 }
 
-export const useCartStore = defineStore('cart', {
-  state: () => ({
-    items: [] as CartItem[],
-    source: 'idle' as CartSource,
-    isLoading: false,
-    isRevalidating: false,
-  }),
+function is404(error: unknown): boolean {
+  try {
+    const { status, statusCode } = error as { status?: number; statusCode?: number };
+    return status === 404 || statusCode === 404;
+  } catch {
+    return false;
+  }
+}
 
-  getters: {
-    count(): number {
-      return this.items.reduce((sum, item) => sum + item.quantity, 0);
-    },
-    subtotal(): number {
-      return this.items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-    },
-    isGuest(): boolean {
-      return this.source === 'guest';
-    },
-  },
+export const useCartStore = defineStore('cart', () => {
+  const { status } = useAuth();
 
-  actions: {
-    async refresh() {
-      if (!import.meta.client) return;
-      if (inflight) return inflight;
-      this.isLoading = true;
-      inflight = (async () => {
-        try {
-          const source = currentSource();
-          if (source === 'server') {
-            const cart = await $fetch<CartResponse>('/api/cart');
-            this.items = cart.items;
-            this.source = 'server';
-          } else if (source === 'guest') {
-            this.items = readGuestCart().items as CartItem[];
-            this.source = 'guest';
-          }
-          // source === 'idle' — сессия ещё определяется, пропускаем до следующего триггера
-        } catch {
-          this.items = [];
-          this.source = 'guest';
-        } finally {
-          this.isLoading = false;
-          inflight = null;
+  let inflight: Promise<void> | null = null;
+  const items = ref<CartItem[]>([]);
+  const source = ref<CartSource>('idle');
+  const isLoading = ref(false);
+  const isRevalidating = ref(false);
+
+  watch(
+    status,
+    (value) => {
+      source.value = value === 'authenticated' ? 'server' : value === 'unauthenticated' ? 'guest' : 'idle';
+    },
+    { immediate: true },
+  );
+
+  function waitForAuth(timeoutMs = 5000): Promise<void> {
+    if (status.value !== 'loading') return Promise.resolve();
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        stop();
+        resolve();
+      }, timeoutMs);
+      const stop = watch(status, (value) => {
+        if (value !== 'loading') {
+          clearTimeout(timer);
+          stop();
+          resolve();
         }
-      })();
-      return inflight;
-    },
-    async load() {
-      await this.refresh();
-    },
-    async addToCart(productId: string, qty: number, product?: Product) {
-      if (currentSource() === 'server') {
-        const item = await $fetch<CartItem>('/api/cart', {
-          method: 'POST',
-          body: { productId, quantity: qty },
-        });
-        const index = this.items.findIndex((i) => i.id === item.id);
-        if (index !== -1) this.items[index] = item;
-        else this.items.push(item);
-        this.source = 'server';
-        return;
-      }
+      });
+    });
+  }
 
-      const cart = readGuestCart();
-      const existing = cart.items.find((item) => item.id === productId);
-      let embed = product ? toCartProduct(product) : undefined;
-      if (!embed && existing) embed = existing.product;
-      if (!embed) return;
-      writeGuestCart(upsertGuestLine(cart, productId, qty, embed));
-      this.items = readGuestCart().items as CartItem[];
-      this.source = 'guest';
-    },
-    async updateQty(id: string, qty: number) {
-      if (currentSource() === 'server') {
-        const item = await $fetch<CartItem>(`/api/cart/${id}`, {
-          method: 'PATCH',
-          body: { quantity: qty },
-        });
-        const index = this.items.findIndex((i) => i.id === item.id);
-        if (index !== -1) this.items[index] = item;
-        return;
-      }
-
-      const cart = readGuestCart();
-      writeGuestCart(setGuestQuantity(cart, id, qty));
-      this.items = readGuestCart().items as CartItem[];
-    },
-    async remove(id: string) {
-      if (currentSource() === 'server') {
-        await $fetch(`/api/cart/${id}`, { method: 'DELETE' });
-        const index = this.items.findIndex((i) => i.id === id);
-        if (index !== -1) this.items.splice(index, 1);
-        return;
-      }
-
-      const cart = readGuestCart();
-      writeGuestCart(removeGuestLine(cart, id));
-      this.items = readGuestCart().items as CartItem[];
-    },
-    // Гость: на открытии /cart сверяем снапшот с живыми данными каталога.
-    // 404 (товар скрыт/удалён) → stock:0 → строка помечается «Нет в наличии».
-    async revalidateGuestLines() {
-      if (!import.meta.client || this.source !== 'guest' || this.items.length === 0) return;
-      this.isRevalidating = true;
+  async function refresh() {
+    if (!import.meta.client) return;
+    if (inflight) return inflight;
+    isLoading.value = true;
+    inflight = (async () => {
       try {
-        const results = await Promise.allSettled(
-          this.items.map((line) =>
-            $fetch<Product>(`/api/products/${line.product.slug}`).then((product) => ({ id: line.id, product })),
-          ),
-        );
-        const fresh = this.items.map((line) => {
-          const result = results.find((r) => r.status === 'fulfilled' && r.value.id === line.id);
-          if (result?.status === 'fulfilled') {
-            return { ...line, product: toCartProduct(result.value.product) };
-          }
-          return { ...line, product: { ...line.product, stock: 0 } };
-        });
-        writeGuestCart({ items: fresh });
-        this.items = fresh as CartItem[];
-      } finally {
-        this.isRevalidating = false;
-      }
-    },
-    // Вызывается после успешного signIn. POST инкрементит → сервер сам сливает количества.
-    async mergeGuestCart(): Promise<{ merged: number; skipped: number }> {
-      if (!import.meta.client) return { merged: 0, skipped: 0 };
-      const guest = readGuestCart();
-      let merged = 0;
-      let skipped = 0;
-      if (guest.items.length > 0) {
-        for (const line of guest.items) {
-          try {
-            await $fetch('/api/cart', {
-              method: 'POST',
-              body: { productId: line.product.id, quantity: line.quantity },
-            });
-            merged++;
-          } catch {
-            skipped++;
-          }
+        if (source.value === 'server') {
+          const cart = await $fetch<CartResponse>('/api/cart');
+          items.value = cart.items;
+        } else if (source.value === 'guest') {
+          items.value = readGuestCart().items as CartItem[];
         }
-        clearGuestCart();
-      }
-      // Грузим серверную корзину напрямую — не полагаемся на реактивность status (redirect:false).
-      try {
-        const cart = await $fetch<CartResponse>('/api/cart');
-        this.items = cart.items;
-        this.source = 'server';
       } catch {
-        this.items = [];
-        this.source = 'server';
+        items.value = [];
+      } finally {
+        isLoading.value = false;
+        inflight = null;
       }
-      return { merged, skipped };
-    },
-    async handleLogout() {
-      if (!import.meta.client) return;
-      clearGuestCart();
-      this.$patch({ items: [], source: 'guest' });
-    },
-  },
+    })();
+    return inflight;
+  }
+
+  async function load() {
+    await refresh();
+  }
+
+  async function addToCart(productId: string, qty: number, product?: Product) {
+    await waitForAuth();
+    if (source.value === 'server') {
+      const item = await $fetch<CartItem>('/api/cart', {
+        method: 'POST',
+        body: { productId, quantity: qty },
+      });
+      const index = items.value.findIndex((i) => i.id === item.id);
+      if (index !== -1) items.value[index] = item;
+      else items.value.push(item);
+      return;
+    }
+
+    const cart = readGuestCart();
+    const existing = cart.items.find((item) => item.id === productId);
+    let embed = product ? toCartProduct(product) : undefined;
+    if (!embed && existing) embed = existing.product;
+    if (!embed) return;
+    writeGuestCart(upsertGuestLine(cart, productId, qty, embed));
+    items.value = readGuestCart().items as CartItem[];
+    source.value = 'guest';
+  }
+
+  async function updateQty(id: string, qty: number) {
+    if (source.value === 'server') {
+      const item = await $fetch<CartItem>(`/api/cart/${id}`, {
+        method: 'PATCH',
+        body: { quantity: qty },
+      });
+      const index = items.value.findIndex((i) => i.id === item.id);
+      if (index !== -1) items.value[index] = item;
+      return;
+    }
+
+    const cart = readGuestCart();
+    writeGuestCart(setGuestQuantity(cart, id, qty));
+    items.value = readGuestCart().items as CartItem[];
+  }
+
+  async function remove(id: string) {
+    if (source.value === 'server') {
+      await $fetch(`/api/cart/${id}`, { method: 'DELETE' });
+      const index = items.value.findIndex((i) => i.id === id);
+      if (index !== -1) items.value.splice(index, 1);
+      return;
+    }
+
+    const cart = readGuestCart();
+    writeGuestCart(removeGuestLine(cart, id));
+    items.value = readGuestCart().items as CartItem[];
+  }
+
+  // Гость: на открытии /cart сверяем снапшот с живыми данными каталога.
+  // 404 (товар скрыт/удалён) → stock:0 → строка помечается «Нет в наличии»; сетевые сбои снапшот не трогают.
+  async function revalidateGuestLines() {
+    if (!import.meta.client || source.value !== 'guest' || items.value.length === 0) return;
+    isRevalidating.value = true;
+    try {
+      const results = await Promise.allSettled(
+        items.value.map((line) =>
+          $fetch<Product>(`/api/products/${line.product.slug}`).then((product) => ({ id: line.id, product })),
+        ),
+      );
+      const fresh = items.value.map((line) => {
+        const result = results.find((r) => r.status === 'fulfilled' && r.value.id === line.id);
+        if (result?.status === 'fulfilled') {
+          return { ...line, product: toCartProduct(result.value.product) };
+        }
+        if (is404(result?.reason)) {
+          return { ...line, product: { ...line.product, stock: 0 } };
+        }
+        return line;
+      });
+      writeGuestCart({ items: fresh });
+      items.value = fresh as CartItem[];
+    } finally {
+      isRevalidating.value = false;
+    }
+  }
+
+  // Вызывается после успешного signIn. POST инкрементит → сервер сам сливает количества.
+  // Строки, упавшие по сети/5xx, остаются в гостевой (не теряем); 404 (товара больше нет) — выпадают осознанно.
+  async function mergeGuestCart(): Promise<{ merged: number; skipped: number }> {
+    if (!import.meta.client) return { merged: 0, skipped: 0 };
+    const guest = readGuestCart();
+    let merged = 0;
+    let skipped = 0;
+    const keep: CartItem[] = [];
+    for (const line of guest.items) {
+      try {
+        await $fetch('/api/cart', {
+          method: 'POST',
+          body: { productId: line.product.id, quantity: line.quantity },
+        });
+        merged++;
+      } catch (error) {
+        skipped++;
+        if (!is404(error)) keep.push(line);
+      }
+    }
+    if (keep.length > 0) writeGuestCart({ items: keep });
+    else clearGuestCart();
+    // Грузим серверную корзину напрямую — не полагаемся на реактивность status (redirect:false).
+    try {
+      const cart = await $fetch<CartResponse>('/api/cart');
+      items.value = cart.items;
+      source.value = 'server';
+    } catch {
+      items.value = [];
+      source.value = 'server';
+    }
+    return { merged, skipped };
+  }
+
+  async function handleLogout() {
+    if (!import.meta.client) return;
+    clearGuestCart();
+    items.value = [];
+    source.value = 'guest';
+  }
+
+  const count = computed(() => items.value.reduce((sum, item) => sum + item.quantity, 0));
+  const subtotal = computed(() =>
+    items.value.reduce((sum, item) => sum + item.product.price * item.quantity, 0),
+  );
+  const isGuest = computed(() => source.value === 'guest');
+
+  return {
+    items,
+    source,
+    isLoading,
+    isRevalidating,
+    count,
+    subtotal,
+    isGuest,
+    load,
+    refresh,
+    addToCart,
+    updateQty,
+    remove,
+    revalidateGuestLines,
+    mergeGuestCart,
+    handleLogout,
+  };
 });

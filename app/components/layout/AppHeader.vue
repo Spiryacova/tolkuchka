@@ -107,8 +107,8 @@
       label: 'Выйти',
       icon: 'i-heroicons-arrow-right-start-on-rectangle',
       onSelect: async () => {
-        await signOut();
         await cart.handleLogout();
+        await signOut();
       },
     },
   ]);
