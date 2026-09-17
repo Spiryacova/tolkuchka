@@ -18,6 +18,7 @@ model User {
   email         String    @unique
   passwordHash  String?   @map("password_hash") // bcrypt-хеш
   name          String?
+  customerNo    Int       @default(autoincrement()) @unique @map("customer_no")
   slug          String?   @unique // публичный профиль продавца
   bio           String? // описание магазина продавца
   avatarUrl     String?   @map("avatar_url") // аватар пользователя
@@ -26,12 +27,13 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  accounts Account[]
-  sessions Session[]
-  products Product[]
-  cartItems CartItem[]
+  accounts     Account[]
+  sessions     Session[]
+  products     Product[]
+  cartItems    CartItem[]
   buyerOrders  Order[]     @relation("BuyerOrders")
-  sellerOrders OrderItem[]
+  sellerOrders Order[]     @relation("SellerOrders")
+  soldItems    OrderItem[]
 
   @@map("users")
 }
@@ -106,8 +108,8 @@ model Product {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  seller   User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  category Category @relation(fields: [categoryId], references: [id])
+  seller     User        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category   Category    @relation(fields: [categoryId], references: [id])
   orderItems OrderItem[]
 
   cartItems CartItem[]
@@ -133,27 +135,35 @@ model CartItem {
 
 model Order {
   id              String      @id @default(cuid())
+  no              Int         @default(autoincrement()) @unique @map("no")
   buyerId         String      @map("buyer_id")
   total           Decimal     @db.Decimal(10, 2)
   status          OrderStatus @default(PENDING)
   shippingAddress Json?       @map("shipping_address")
+  checkoutGroupId String?     @map("checkout_group_id") // группа покупки: все заказы одного оформления
+  sellerId        String     @map("seller_id")
   createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
-  buyer      User        @relation("BuyerOrders", fields: [buyerId], references: [id])
-  items      OrderItem[]
+  buyer  User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller User       @relation("SellerOrders", fields: [sellerId], references: [id])
+  items  OrderItem[]
 
   @@index([buyerId])
+  @@index([sellerId])
+  @@index([checkoutGroupId])
   @@map("orders")
 }
 
 model OrderItem {
-  id               String  @id @default(cuid())
-  orderId          String  @map("order_id")
-  productId        String  @map("product_id")
-  sellerId         String  @map("seller_id")
-  quantity         Int
-  priceAtPurchase  Decimal @db.Decimal(10, 2) @map("price_at_purchase")
+  id              String      @id @default(cuid())
+  orderId         String      @map("order_id")
+  productId       String      @map("product_id")
+  sellerId        String      @map("seller_id")
+  quantity        Int
+  priceAtPurchase Decimal     @map("price_at_purchase") @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING) // статус по товару — источник истины
+  statusUpdatedAt DateTime?   @map("status_updated_at")
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
