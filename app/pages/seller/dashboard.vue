@@ -153,7 +153,8 @@
 </template>
 
 <script setup lang="ts">
-  import type { SellerStats } from '#shared/schemas/seller.schema';
+  import type { SellerStats, RecentOrder } from '#shared/schemas/seller.schema';
+  import type { ColumnDef } from '@tanstack/vue-table';
 
   definePageMeta({
     layout: 'dashboard',
@@ -200,13 +201,13 @@
     { label: 'Средний чек', value: formatPrice(store.avgOrder), hint: 'в среднем на заказ' },
   ]);
 
-  const orderColumns = [
-    { key: 'id', header: '№' },
-    { key: 'buyerName', header: 'Покупатель' },
-    { key: 'sellerTotal', header: 'Сумма' },
-    { key: 'status', header: 'Статус' },
-    { key: 'createdAt', header: 'Дата' },
-  ];
+const orderColumns: ColumnDef<RecentOrder>[] = [
+  { accessorKey: 'id', header: '№' },
+  { accessorKey: 'buyerName', header: 'Покупатель' },
+  { accessorKey: 'sellerTotal', header: 'Сумма' },
+  { accessorKey: 'status', header: 'Статус' },
+  { accessorKey: 'createdAt', header: 'Дата' },
+];
 
   const attentionItems = computed(() => [
     ...data.value.lowStock.map((p) => ({ id: p.id, name: p.name, kind: 'low' as const, stock: p.stock })),
