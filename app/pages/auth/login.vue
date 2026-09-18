@@ -31,6 +31,7 @@
   const route = useRoute();
   const toast = useToast();
   const { signIn } = useAuth();
+  const cart = useCartStore();
 
   // Куда вернуть пользователя после входа: из ?redirect= берём только относительные пути — защита от open redirect (?redirect=https://фишинг-клон-банка.ru)
   function getRedirectTarget() {
@@ -58,6 +59,7 @@
         color: 'error',
       });
     } else {
+      await cart.mergeGuestCart();
       toast.add({
         title: 'Вы вошли',
         description: `Добро пожаловать, ${data.email}`,

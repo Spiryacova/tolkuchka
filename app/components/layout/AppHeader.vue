@@ -33,6 +33,18 @@
 
     <template #right>
       <div class="flex items-center gap-2">
+        <UButton to="/cart" color="neutral" variant="ghost" size="sm" class="relative" aria-label="Корзина">
+          <UIcon name="i-heroicons-shopping-cart" class="h-5 w-5" />
+          <UBadge
+            v-if="cartCount > 0"
+            color="primary"
+            variant="solid"
+            size="xs"
+            class="absolute -right-1 -top-1 px-1.5"
+          >
+            {{ cartCount }}
+          </UBadge>
+        </UButton>
         <template v-if="status === 'authenticated'">
           <UDropdownMenu :items="accountItems">
             <UButton color="neutral" variant="ghost" class="gap-1.5">
@@ -78,7 +90,11 @@
 
 <script setup lang="ts">
   const store = useProductStore();
+  const cart = useCartStore();
+  const { count: cartCount } = storeToRefs(cart);
   const { data: session, status, signOut } = useAuth();
+
+  watch(() => status.value, () => cart.load());
   const user = computed(() => session.value?.user);
 
   const accountItems = computed(() => [
@@ -93,7 +109,10 @@
     {
       label: 'Выйти',
       icon: 'i-heroicons-arrow-right-start-on-rectangle',
-      onSelect: () => signOut(),
+      onSelect: async () => {
+        await cart.handleLogout();
+        await signOut();
+      },
     },
   ]);
 
