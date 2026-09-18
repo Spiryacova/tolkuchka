@@ -103,6 +103,9 @@
       icon: 'i-heroicons-cog-6-tooth',
       to: '/account/settings',
     },
+    ...(user.value?.role === 'seller' || user.value?.role === 'admin'
+      ? [{ label: 'Кабинет продавца', icon: 'i-heroicons-receipt-percent', to: '/seller/orders' }]
+      : []),
     {
       label: 'Выйти',
       icon: 'i-heroicons-arrow-right-start-on-rectangle',

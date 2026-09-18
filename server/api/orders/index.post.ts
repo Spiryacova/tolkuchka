@@ -1,10 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '#server/utils/prisma';
 import { Prisma } from '#server/generated/prisma/client';
 import { requireUser } from '#server/utils/requireUser';
 import { createOrderSchema } from '#shared/schemas/order.schema';
 import type { EventHandlerResponse } from 'h3';
 import { defineRouteMeta } from 'nitropack/runtime';
-import type { CreateOrder, OrderCreated } from '#shared/schemas/order.schema';
+import type { CreateOrder, OrderCreated, CheckoutCreated } from '#shared/schemas/order.schema';
 
 defineRouteMeta({
   openAPI: {
@@ -32,7 +33,35 @@ defineRouteMeta({
       },
     },
     responses: {
-      '201': { description: 'Заказ создан' },
+      '201': {
+        description: 'Созданы заказы: по одному на каждого продавца из корзины',
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['checkoutGroupId', 'orders', 'buyerNo'],
+              properties: {
+                checkoutGroupId: { type: 'string' },
+                orders: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['id', 'status', 'total', 'itemCount', 'no'],
+                    properties: {
+                      id: { type: 'string' },
+                      status: { type: 'string' },
+                      total: { type: 'number' },
+                      itemCount: { type: 'integer' },
+                      no: { type: 'integer' },
+                    },
+                  },
+                },
+                buyerNo: { type: 'integer' },
+              },
+            },
+          },
+        },
+      },
       '400': { description: 'Корзина пуста или некорректные данные' },
       '401': { description: 'Требуется авторизация' },
       '409': { description: 'Часть товаров недоступна (закончился/скрыт)' },
@@ -40,9 +69,14 @@ defineRouteMeta({
   },
 });
 
-export default defineEventHandler<{ body: CreateOrder }, EventHandlerResponse<OrderCreated>>(async (event) => {
+export default defineEventHandler<{ body: CreateOrder }, EventHandlerResponse<CheckoutCreated>>(async (event) => {
   const buyerId = await requireUser(event);
   const body = await readValidatedBody(event, (data) => createOrderSchema.parse(data));
+
+  // Идентификатор «покупки»: общий для всех заказов одного оформления.
+  const checkoutGroupId = randomUUID();
+  const buyer = await prisma.user.findUnique({ where: { id: buyerId }, select: { customerNo: true } });
+  if (!buyer) throw createError({ statusCode: 401, statusMessage: 'Пользователь не найден' });
 
   const created = await prisma.$transaction(async (tx) => {
     const cartItems = await tx.cartItem.findMany({
@@ -78,31 +112,50 @@ export default defineEventHandler<{ body: CreateOrder }, EventHandlerResponse<Or
       });
     }
 
-    const total = cartItems.reduce(
-      (sum, item) => sum.add(item.product.price.mul(item.quantity)),
-      new Prisma.Decimal(0),
-    );
+    // Разбиение корзины на заказы: один заказ = один продавец.
+    type CartItemWithProduct = (typeof cartItems)[number];
+    const bySeller = new Map<string, CartItemWithProduct[]>();
+    for (const item of cartItems) {
+      const group = bySeller.get(item.product.sellerId);
+      if (group) {
+        group.push(item);
+      } else {
+        bySeller.set(item.product.sellerId, [item]);
+      }
+    }
 
-    const order = await tx.order.create({
-      data: {
-        buyerId,
-        total,
-        status: 'PENDING',
-        shippingAddress: body.shippingAddress,
-        items: {
-          create: cartItems.map((item) => ({
-            productId: item.productId,
-            sellerId: item.product.sellerId,
-            quantity: item.quantity,
-            priceAtPurchase: item.product.price,
-          })),
+    const orders: OrderCreated[] = [];
+    for (const [sellerId, group] of bySeller) {
+      const total = group.reduce(
+        (sum, item) => sum.add(item.product.price.mul(item.quantity)),
+        new Prisma.Decimal(0),
+      );
+
+      const order = await tx.order.create({
+        data: {
+          buyerId,
+          sellerId,
+          checkoutGroupId,
+          total,
+          status: 'PENDING',
+          shippingAddress: body.shippingAddress,
+          items: {
+            create: group.map((item) => ({
+              productId: item.productId,
+              sellerId,
+              quantity: item.quantity,
+              priceAtPurchase: item.product.price,
+            })),
+          },
         },
-      },
-    });
+      });
+
+      orders.push({ id: order.id, status: order.status, total: Number(order.total), itemCount: group.length, no: order.no });
+    }
 
     await tx.cartItem.deleteMany({ where: { userId: buyerId } });
 
-    return { id: order.id, status: order.status, total: Number(order.total), itemCount: cartItems.length };
+    return { checkoutGroupId, buyerNo: buyer.customerNo, orders };
   });
 
   setResponseStatus(event, 201);
