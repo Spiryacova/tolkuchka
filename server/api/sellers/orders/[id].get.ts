@@ -1,5 +1,4 @@
 import { prisma } from '#server/utils/prisma';
-import { Prisma } from '#server/generated/prisma/client';
 import { requireSeller } from '#server/utils/requireSeller';
 import type { EventHandlerResponse } from 'h3';
 import { defineRouteMeta } from 'nitropack/runtime';
@@ -8,10 +7,10 @@ import type { SellerOrderDetail, ShippingAddress } from '#shared/schemas/order.s
 defineRouteMeta({
   openAPI: {
     responses: {
-      '200': { description: 'Детали заказа продавца (только его позиции)' },
+      '200': { description: 'Детали заказа продавца (только его позиции, со статусами)' },
       '401': { description: 'Требуется авторизация' },
       '403': { description: 'Требуется роль продавца' },
-      '404': { description: 'Заказ не найден или не содержит позиций продавца' },
+      '404': { description: 'Заказ не найден' },
     },
   },
 });
@@ -22,17 +21,18 @@ export default defineEventHandler<object, EventHandlerResponse<SellerOrderDetail
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Не указан id заказа' });
 
   const order = await prisma.order.findFirst({
-    where: { id, items: { some: { sellerId } } },
+    where: { id, sellerId },
     include: {
-      buyer: { select: { name: true, email: true } },
+      buyer: { select: { name: true, email: true, customerNo: true } },
       items: {
-        where: { sellerId },
         select: {
           id: true,
           productId: true,
           quantity: true,
           priceAtPurchase: true,
-          product: { select: { name: true, images: true } },
+          status: true,
+          statusUpdatedAt: true,
+          product: { select: { name: true, images: true, slug: true } },
         },
       },
     },
@@ -48,16 +48,19 @@ export default defineEventHandler<object, EventHandlerResponse<SellerOrderDetail
     buyerName: order.buyer?.name ?? null,
     buyerEmail: order.buyer?.email ?? '',
     shippingAddress: order.shippingAddress as ShippingAddress | null,
-    sellerTotal: Number(
-      order.items.reduce((sum, i) => sum.add(i.priceAtPurchase.mul(i.quantity)), new Prisma.Decimal(0)),
-    ),
+    sellerTotal: Number(order.total),
+    buyerNo: order.buyer!.customerNo,
+    no: order.no,
     items: order.items.map((i) => ({
       id: i.id,
       productId: i.productId,
+      slug: i.product.slug,
       name: i.product.name,
       image: i.product.images[0] ?? null,
       quantity: i.quantity,
       priceAtPurchase: Number(i.priceAtPurchase),
+      status: i.status,
+      statusUpdatedAt: i.statusUpdatedAt?.toISOString() ?? null,
     })),
   };
 });

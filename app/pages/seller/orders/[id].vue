@@ -5,7 +5,7 @@
         <ULink to="/seller/orders" class="text-sm text-muted hover:text-primary">
           ← Все заказы
         </ULink>
-        <h1 class="mt-1 text-2xl font-bold">Заказ #{{ order.id.slice(-6) }}</h1>
+        <h1 class="mt-1 text-2xl font-bold">Заказ #{{ formatOrderNumber(order.buyerNo, order.no) }}</h1>
         <div class="mt-2 flex items-center gap-3">
           <UBadge :color="orderStatusColor(order.status)" variant="subtle">
             {{ orderStatusLabel(order.status) }}
@@ -16,12 +16,12 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div v-if="transitionItems.length > 0" class="flex items-center gap-3">
         <USelect
           v-model="selected"
           :items="transitionItems"
-          :disabled="saving || transitionItems.length === 0"
-          :placeholder="transitionItems.length === 0 ? 'Терминальный статус' : 'Новый статус…'"
+          :disabled="saving"
+          placeholder="Новый статус…"
           class="w-56"
         />
         <UButton
@@ -49,7 +49,7 @@
 
           <ul class="divide-y divide-(--ui-border)">
             <li v-for="item in order.items" :key="item.id" class="flex items-center gap-4 py-4">
-              <ULink :to="`/products/${item.productId}`">
+              <ULink :to="`/products/${item.slug}`">
                 <img
                   v-if="item.image"
                   :src="item.image"
@@ -61,14 +61,30 @@
                 </div>
               </ULink>
               <div class="min-w-0 flex-1">
-                <ULink :to="`/products/${item.productId}`" class="font-medium hover:text-primary">
+                <ULink :to="`/products/${item.slug}`" class="font-medium hover:text-primary">
                   {{ item.name }}
                 </ULink>
                 <p class="text-sm text-muted">
                   {{ item.quantity }} × {{ formatPrice(item.priceAtPurchase) }}
                 </p>
               </div>
-              <span class="font-medium">{{ formatPrice(item.priceAtPurchase * item.quantity) }}</span>
+              <div class="flex items-center gap-3">
+                <UBadge :color="orderStatusColor(item.status)" variant="subtle">
+                  {{ orderStatusLabel(item.status) }}
+                </UBadge>
+                <UButton
+                  v-if="ALLOWED_TRANSITIONS[item.status].includes('CANCELLED')"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  icon="i-heroicons-x-mark"
+                  :disabled="saving"
+                  @click="cancelItem(item)"
+                >
+                  Отменить
+                </UButton>
+                <span class="w-24 text-right font-medium">{{ formatPrice(item.priceAtPurchase * item.quantity) }}</span>
+              </div>
             </li>
           </ul>
         </UCard>
@@ -126,9 +142,13 @@
     </div>
 
     <UModal
-      v-model:open="confirmCancel"
-      :title="`Отменить заказ #${order.id.slice(-6)}?`"
-      description="Товары вернутся в остатки, а покупатель получит заказ со статусом «Отменён»."
+      v-model:open="cancelConfirm"
+      :title="cancelTarget === 'all'
+        ? `Отменить заказ #${formatOrderNumber(order.buyerNo, order.no)}?`
+        : `Отменить позицию «${cancelItemName}»?`"
+      :description="cancelTarget === 'all'
+        ? 'Товары вернутся в остатки, покупатель получит заказ со статусом «Отменён».'
+        : 'Товар вернётся в остаток, остальные позиции без изменений.'"
     >
       <template #footer>
         <div class="flex w-full justify-end gap-3">
@@ -136,14 +156,14 @@
             color="error"
             variant="solid"
             :loading="saving"
-            @click="confirmCancel = false; applyStatus()"
+            @click="confirmCancelAction"
           >
-            Отменить заказ
+            Отменить
           </UButton>
           <UButton
             color="neutral"
             variant="ghost"
-            @click="confirmCancel = false"
+            @click="cancelConfirm = false"
           >
             Вернуться
           </UButton>
@@ -160,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-  import type { OrderStatus, SellerOrderDetail } from '#shared/schemas/order.schema';
+  import type { OrderStatus, SellerOrderDetail, SellerOrderItem } from '#shared/schemas/order.schema';
   import { ALLOWED_TRANSITIONS } from '#shared/schemas/order.schema';
 
   const route = useRoute();
@@ -173,7 +193,7 @@
     robots: false,
   });
 
-  const { data: order, error } = await useAsyncData(
+  const { data: order, error, refresh } = await useAsyncData(
     'seller-order-' + route.params.id,
     () => requestFetch<SellerOrderDetail>(`/api/sellers/orders/${route.params.id}`),
   );
@@ -181,7 +201,8 @@
 
   const selected = ref<OrderStatus | undefined>(undefined);
   const saving = ref(false);
-  const confirmCancel = ref(false);
+  const cancelTarget = ref<'all' | string | null>(null);
+  const cancelConfirm = ref(false);
 
   const transitionItems = computed(() =>
     ALLOWED_TRANSITIONS[order.value!.status].map((s) => ({
@@ -192,24 +213,37 @@
 
   const itemsQuantity = computed(() => order.value!.items.reduce((s, i) => s + i.quantity, 0));
 
+  const cancelItemName = computed(() => {
+    if (typeof cancelTarget.value !== 'string') return null;
+    return order.value!.items.find((i) => i.id === cancelTarget.value)?.name ?? null;
+  });
+
   function onApply() {
-    if (selected.value === 'CANCELLED') confirmCancel.value = true
-    else applyStatus()
+    if (selected.value === 'CANCELLED') {
+      cancelTarget.value = 'all';
+      cancelConfirm.value = true;
+    } else if (selected.value) {
+      applyBatch(selected.value);
+    }
   }
 
-  async function applyStatus() {
-    if (!selected.value) return;
+  function cancelItem(item: SellerOrderItem) {
+    cancelTarget.value = item.id;
+    cancelConfirm.value = true;
+  }
+
+  async function applyBatch(status: OrderStatus) {
     saving.value = true;
     try {
       await requestFetch(`/api/sellers/orders/${order.value!.id}`, {
         method: 'PATCH',
-        body: { status: selected.value },
+        body: { status },
       });
-      order.value!.status = selected.value;
+      await refresh();
       selected.value = undefined;
       toast.add({
         title: 'Статус обновлён',
-        description: `${orderStatusLabel(order.value!.status)} · заказ #${order.value!.id.slice(-6)}`,
+        description: `${orderStatusLabel(order.value!.status)} · заказ #${formatOrderNumber(order.value!.buyerNo, order.value!.no)}`,
         color: 'success',
       });
     } catch (e) {
@@ -221,5 +255,34 @@
     } finally {
       saving.value = false;
     }
+  }
+
+  async function applyCancelItem(itemId: string) {
+    saving.value = true;
+    try {
+      await requestFetch(`/api/sellers/orders/${order.value!.id}`, {
+        method: 'PATCH',
+        body: { status: 'CANCELLED', itemIds: [itemId] },
+      });
+      await refresh();
+      selected.value = undefined;
+      toast.add({ title: 'Позиция отменена', color: 'success' });
+    } catch (e) {
+      toast.add({
+        title: 'Не удалось отменить позицию',
+        description: apiErrorMessage(e),
+        color: 'error',
+      });
+    } finally {
+      saving.value = false;
+    }
+  }
+
+  function confirmCancelAction() {
+    const target = cancelTarget.value;
+    cancelConfirm.value = false;
+    cancelTarget.value = null;
+    if (target === 'all') applyBatch('CANCELLED');
+    else if (typeof target === 'string') applyCancelItem(target);
   }
 </script>

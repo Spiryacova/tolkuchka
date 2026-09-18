@@ -5,6 +5,20 @@
       <p v-if="data" class="mt-1 text-sm text-muted">Заказы на ваши товары</p>
     </div>
 
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <UInput
+        v-model="searchText"
+        icon="i-heroicons-magnifying-glass"
+        placeholder="Поиск: номер, имя, email"
+        class="w-full sm:w-72"
+        size="sm"
+      />
+      <USelect v-model="perPage" :items="perPageOptions" size="sm" class="w-28" />
+    </div>
+    <p class="mb-4 text-xs text-muted">
+      Цифры — точный номер без нулей слева: 9 = заказ …-0009 · 1009 = покупатель #001009. Текст — имя или email.
+    </p>
+
     <UTabs v-model="tab" :items="tabs" class="mb-4" />
 
     <template v-if="error">
@@ -22,15 +36,41 @@
       </UAlert>
     </template>
 
+    <template v-else-if="data && q && data.total === 0">
+      <UCard>
+        <UEmpty
+          icon="i-heroicons-magnifying-glass"
+          title="Ничего не найдено"
+          :description="`По запросу «${q}» заказов нет`"
+        >
+          <template #actions>
+            <UButton
+              icon="i-heroicons-x-mark"
+              color="neutral"
+              variant="soft"
+              @click="q = ''; searchText = ''"
+            >
+              Сбросить поиск
+            </UButton>
+          </template>
+        </UEmpty>
+      </UCard>
+    </template>
+
     <template v-else-if="data && data.total > 0">
       <UCard :ui="{ body: 'p-0' }">
-        <UTable :data="data.items" :columns="columns" :loading="pending">
+        <UTable
+          v-model:sorting="sorting"
+          :data="data.items"
+          :columns="columns"
+          :loading="pending"
+        >
           <template #loading>
             <USkeleton class="h-10 w-full" />
           </template>
           <template #id-cell="{ row }">
             <ULink :to="`/seller/orders/${row.original.id}`" class="font-medium text-primary">
-              #{{ row.original.id.slice(-6) }}
+              {{ formatOrderNumber(row.original.buyerNo, row.original.no) }}
             </ULink>
           </template>
           <template #buyerName-cell="{ row }">
@@ -43,12 +83,67 @@
             <span class="font-medium">{{ formatPrice(row.original.sellerTotal) }}</span>
           </template>
           <template #status-cell="{ row }">
-            <UBadge :color="orderStatusColor(row.original.status)" variant="subtle">
-              {{ orderStatusLabel(row.original.status) }}
-            </UBadge>
+            <div class="flex items-center gap-2">
+              <UBadge :color="orderStatusColor(row.original.status)" variant="subtle">
+                {{ orderStatusLabel(row.original.status) }}
+              </UBadge>
+              <UBadge
+                v-if="row.original.hasCancelledItems && row.original.status !== 'CANCELLED'"
+                color="warning"
+                variant="subtle"
+              >
+                Частичная отмена
+              </UBadge>
+            </div>
           </template>
           <template #createdAt-cell="{ row }">
             <span class="whitespace-nowrap text-sm text-muted">{{ formatDate(row.original.createdAt) }}</span>
+          </template>
+
+          <template #buyerName-header="{ column }">
+            <button class="inline-flex items-center gap-1.5" @click="column.getToggleSortingHandler()?.($event)">
+              Покупатель
+              <UIcon
+                :name="column.getIsSorted() === 'asc' ? 'i-heroicons-chevron-up' : column.getIsSorted() === 'desc' ? 'i-heroicons-chevron-down' : 'i-heroicons-arrows-up-down'"
+                class="size-3.5 text-muted"
+              />
+            </button>
+          </template>
+          <template #itemCount-header="{ column }">
+            <button class="inline-flex items-center gap-1.5" @click="column.getToggleSortingHandler()?.($event)">
+              Позиции · шт
+              <UIcon
+                :name="column.getIsSorted() === 'asc' ? 'i-heroicons-chevron-up' : column.getIsSorted() === 'desc' ? 'i-heroicons-chevron-down' : 'i-heroicons-arrows-up-down'"
+                class="size-3.5 text-muted"
+              />
+            </button>
+          </template>
+          <template #sellerTotal-header="{ column }">
+            <button class="inline-flex items-center gap-1.5" @click="column.getToggleSortingHandler()?.($event)">
+              Сумма
+              <UIcon
+                :name="column.getIsSorted() === 'asc' ? 'i-heroicons-chevron-up' : column.getIsSorted() === 'desc' ? 'i-heroicons-chevron-down' : 'i-heroicons-arrows-up-down'"
+                class="size-3.5 text-muted"
+              />
+            </button>
+          </template>
+          <template #status-header="{ column }">
+            <button class="inline-flex items-center gap-1.5" @click="column.getToggleSortingHandler()?.($event)">
+              Статус
+              <UIcon
+                :name="column.getIsSorted() === 'asc' ? 'i-heroicons-chevron-up' : column.getIsSorted() === 'desc' ? 'i-heroicons-chevron-down' : 'i-heroicons-arrows-up-down'"
+                class="size-3.5 text-muted"
+              />
+            </button>
+          </template>
+          <template #createdAt-header="{ column }">
+            <button class="inline-flex items-center gap-1.5" @click="column.getToggleSortingHandler()?.($event)">
+              Дата
+              <UIcon
+                :name="column.getIsSorted() === 'asc' ? 'i-heroicons-chevron-up' : column.getIsSorted() === 'desc' ? 'i-heroicons-chevron-down' : 'i-heroicons-arrows-up-down'"
+                class="size-3.5 text-muted"
+              />
+            </button>
           </template>
         </UTable>
       </UCard>
@@ -78,7 +173,7 @@
 
 <script setup lang="ts">
   import type { OrderStatus, SellerOrderListResponse, SellerOrderSummary } from '#shared/schemas/order.schema';
-  import type { ColumnDef } from '@tanstack/vue-table';
+  import type { ColumnDef, SortingState } from '@tanstack/vue-table';
   import { ORDER_STATUSES } from '#shared/schemas/order.schema';
 
   definePageMeta({
@@ -88,14 +183,19 @@
   });
 
   const requestFetch = useRequestFetch();
-  const perPage = 10;
+  const perPage = ref(10);
+  const q = ref('');
+  const searchText = ref('');
+  const sorting = ref<SortingState>([{ id: 'createdAt', desc: true }]);
+  const sortBy = computed(() => sorting.value[0]?.id ?? 'createdAt');
+  const sortDir = computed(() => (sorting.value[0]?.desc ? 'desc' : 'asc'));
   const tab = ref<'ALL' | OrderStatus>('ALL');
   const page = ref(1);
 
   const emptyResponse: SellerOrderListResponse = {
     items: [],
     page: 1,
-    perPage,
+    perPage: perPage.value,
     total: 0,
     statusCounts: { PENDING: 0, CONFIRMED: 0, SHIPPED: 0, DELIVERED: 0, CANCELLED: 0 },
   };
@@ -106,14 +206,17 @@
       requestFetch<SellerOrderListResponse>('/api/sellers/orders', {
         query: {
           page: page.value,
-          perPage,
+          q: q.value,
+          sortBy: sortBy.value,
+          sortDir: sortDir.value,
+          perPage: perPage.value,
           ...(tab.value !== 'ALL' ? { status: tab.value } : {}),
         },
       }),
-    { watch: [tab, page], default: () => emptyResponse },
+    { watch: [tab, page, q, sortBy, sortDir, perPage], default: () => emptyResponse },
   );
 
-  watch(tab, () => {
+  watch([tab, q, sortBy, sortDir, perPage], () => {
     page.value = 1;
   });
 
@@ -137,4 +240,13 @@
     { accessorKey: 'status', header: 'Статус' },
     { accessorKey: 'createdAt', header: 'Дата' },
   ];
+
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  watch(searchText, (v) => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => { q.value = v.trim(); }, 350);
+  });
+
+  const perPageOptions = [10, 25, 50].map((n) => ({ label: `${n}`, value: n }));
 </script>

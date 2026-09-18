@@ -29,8 +29,20 @@ export const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   CANCELLED: [],
 };
 
+const AGGREGATE_RANK: Record<OrderStatus, number> = {
+  PENDING: 0, CONFIRMED: 1, SHIPPED: 2, DELIVERED: 3, CANCELLED: 4,
+};
+export function aggregateOrderStatus(items: Array<{ status: OrderStatus }>): OrderStatus {
+  const active = items.filter((i) => i.status !== 'CANCELLED');
+  if (active.length === 0) return 'CANCELLED';
+  return active.reduce(
+    (min, i) => (AGGREGATE_RANK[i.status] < AGGREGATE_RANK[min.status] ? i : min),
+  ).status;
+}
+
 export const orderStatusUpdateSchema = z.object({
   status: orderStatusSchema,
+  itemIds: z.array(z.string()).optional(),
 });
 
 export type OrderStatusUpdate = z.output<typeof orderStatusUpdateSchema>;
@@ -40,14 +52,26 @@ export const orderCreatedSchema = z.object({
   status: orderStatusSchema,
   total: z.number().nonnegative(),
   itemCount: z.number().int().nonnegative(),
+  no: z.number().int(),
 });
 
 export type OrderCreated = z.output<typeof orderCreatedSchema>;
+
+export const checkoutCreatedSchema = z.object({
+  checkoutGroupId: z.string(),
+  orders: z.array(orderCreatedSchema),
+  buyerNo: z.number().int(),
+});
+
+export type CheckoutCreated = z.output<typeof checkoutCreatedSchema>;
 
 export const sellerOrdersQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(50).default(10),
   status: orderStatusSchema.optional(),
+  q: z.string().trim().default(''),
+  sortBy: z.enum(['createdAt', 'sellerTotal', 'itemCount', 'buyerName', 'status', 'no']).default('createdAt'),
+  sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 
 export type SellerOrdersQuery = z.output<typeof sellerOrdersQuerySchema>;
@@ -55,10 +79,13 @@ export type SellerOrdersQuery = z.output<typeof sellerOrdersQuerySchema>;
 export const sellerOrderItemSchema = z.object({
   id: z.string(),
   productId: z.string(),
+  slug: z.string(),
   name: z.string(),
   image: z.string().nullable(),
   quantity: z.number().int().positive(),
   priceAtPurchase: z.number().nonnegative(),
+  status: orderStatusSchema,
+  statusUpdatedAt: z.string().nullable(),
 });
 
 export type SellerOrderItem = z.output<typeof sellerOrderItemSchema>;
@@ -70,6 +97,9 @@ export const sellerOrderSummarySchema = z.object({
   sellerTotal: z.number().nonnegative(),
   itemCount: z.number().int().nonnegative(),
   totalQuantity: z.number().int().nonnegative(),
+  hasCancelledItems: z.boolean(),
+  buyerNo: z.number().int(),
+  no: z.number().int(),
   createdAt: z.string(),
 });
 
@@ -94,6 +124,8 @@ export const sellerOrderDetailSchema = z.object({
   buyerEmail: z.string(),
   shippingAddress: shippingAddressSchema.nullable(),
   sellerTotal: z.number().nonnegative(),
+  buyerNo: z.number().int(),
+  no: z.number().int(),
   items: z.array(sellerOrderItemSchema),
 });
 
