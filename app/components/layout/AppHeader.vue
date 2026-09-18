@@ -20,7 +20,7 @@
             <span class="inline-flex items-center gap-1.5">
               <UIcon name="i-heroicons-squares-2x2" />
               <span class="hidden sm:inline">Каталог</span>
-              <UIcon name="i-heroicons-chevron-down-16" class="hidden sm:inline" />
+              <UIcon name="i-heroicons-chevron-down" class="hidden sm:inline" />
             </span>
           </UButton>
         </UDropdownMenu>
@@ -42,7 +42,7 @@
                 size="sm"
               />
               <span class="hidden sm:inline">{{ user?.name }}</span>
-              <UIcon name="i-heroicons-chevron-down-16" class="hidden sm:inline" />
+              <UIcon name="i-heroicons-chevron-down" class="hidden sm:inline" />
             </UButton>
           </UDropdownMenu>
         </template>
