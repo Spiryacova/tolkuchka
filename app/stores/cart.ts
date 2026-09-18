@@ -92,7 +92,7 @@ export const useCartStore = defineStore('cart', () => {
     await refresh();
   }
 
-  async function addToCart(productId: string, qty: number, product?: Product) {
+  async function addToCart(productId: string, qty: number, product?: Product, snapshot?: CartProduct) {
     await waitForAuth();
     if (source.value === 'server') {
       const item = await $fetch<CartItem>('/api/cart', {
@@ -107,7 +107,7 @@ export const useCartStore = defineStore('cart', () => {
 
     const cart = readGuestCart();
     const existing = cart.items.find((item) => item.id === productId);
-    let embed = product ? toCartProduct(product) : undefined;
+    let embed = snapshot ?? (product ? toCartProduct(product) : undefined);
     if (!embed && existing) embed = existing.product;
     if (!embed) return;
     writeGuestCart(upsertGuestLine(cart, productId, qty, embed));

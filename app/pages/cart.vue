@@ -96,7 +96,7 @@
       actions: [
         {
           label: 'Вернуть',
-          onClick: () => cart.addToCart(line.product.id, line.quantity),
+          onClick: () => cart.addToCart(line.product.id, line.quantity, undefined, line.product),
         },
       ],
     });
