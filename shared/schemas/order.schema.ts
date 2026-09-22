@@ -130,3 +130,33 @@ export const sellerOrderDetailSchema = z.object({
 });
 
 export type SellerOrderDetail = z.output<typeof sellerOrderDetailSchema>;
+
+export const buyerOrderItemSchema = z.object({
+  id: z.string(),
+  productId: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  image: z.string().nullable(),
+  quantity: z.number().int().positive(),
+  priceAtPurchase: z.number().nonnegative(),
+  status: orderStatusSchema,
+});
+
+export type BuyerOrderItem = z.output<typeof buyerOrderItemSchema>;
+
+// Деталь заказа глазами покупателя: свой заказ целиком + имя продавца.
+export const buyerOrderDetailSchema = z.object({
+  id: z.string(),
+  status: orderStatusSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  sellerName: z.string().nullable(),
+  shippingAddress: shippingAddressSchema.nullable(),
+  total: z.number().nonnegative(),
+  buyerNo: z.number().int(),
+  no: z.number().int(),
+  itemCount: z.number().int().positive(),
+  items: z.array(buyerOrderItemSchema),
+});
+
+export type BuyerOrderDetail = z.output<typeof buyerOrderDetailSchema>;

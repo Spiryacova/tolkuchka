@@ -172,6 +172,14 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
+  // Сброс клиентской корзины после оформления заказа. Для авторизованного пользователя
+  // серверная БД уже очищена POST /api/orders — достаточно обнулить клиентские строки.
+  function clear() {
+    if (!import.meta.client) return;
+    items.value = [];
+    if (source.value === 'guest') clearGuestCart();
+  }
+
   // Вызывается после успешного signIn. POST инкрементит → сервер сам сливает количества.
   // Строки, упавшие по сети/5xx, остаются в гостевой (не теряем); 404 (товара больше нет) — выпадают осознанно.
   async function mergeGuestCart(): Promise<{ merged: number; skipped: number }> {
@@ -235,5 +243,6 @@ export const useCartStore = defineStore('cart', () => {
     revalidateGuestLines,
     mergeGuestCart,
     handleLogout,
+    clear,
   };
 });
