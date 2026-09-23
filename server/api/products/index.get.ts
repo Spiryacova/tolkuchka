@@ -3,7 +3,7 @@ import type { Prisma } from '#server/generated/prisma/client';
 import { catalogQuerySchema, type CatalogQuery } from '#shared/schemas/catalog.schema';
 
 export default defineEventHandler(async (event) => {
-  const { q, categoryId, priceMin, priceMax, sort, page, perPage } =
+  const { q, categoryId, priceMin, priceMax, sort, discount, page, perPage } =
     await getValidatedQuery(event, (data) => catalogQuerySchema.parse(data));
 
   const where: Prisma.ProductWhereInput = {
@@ -19,6 +19,7 @@ export default defineEventHandler(async (event) => {
           ...(priceMax !== undefined ? { lte: priceMax } : {}),
         } }
       : {}),
+    ...(discount ? { oldPrice: { not: null } } : {}),
   };
 
   const orderByMap: Record<CatalogQuery['sort'], Prisma.ProductOrderByWithRelationInput[]> = {
