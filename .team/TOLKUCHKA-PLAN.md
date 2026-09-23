@@ -579,7 +579,7 @@ enum OrderStatus {
 | 29 | `server/api/cart/*` — CRUD корзины (Prisma транзакции) | Dev 1 ✅ | Server API, Prisma |
 | 30 | Pinia store `cart.ts` — клиентская корзина: серверный контракт `/api/cart` + гостевая корзина в localStorage | Dev 1 ✅ | Pinia actions, SSR-safe |
 | 31 | Страница `cart.vue` — отображение, изменение количества (+ гостевая: ревалидация, гейт «Войти и оформить») | Dev 1 ✅ | Forms, Nuxt UI |
-| 32 | `pages/checkout/` — `index.vue` (оформление, адрес, подтверждение) + `success.vue` (подтверждение заказа) | Dev 1 | Form validation, middleware |
+| 32 | `pages/checkout/` — `index.vue` (оформление, адрес, подтверждение) + `success.vue` (подтверждение заказа) | Dev 1 ✅, Dev 2 | Form validation, middleware |
 | 33 | `server/api/orders/index.post.ts` — создание заказа (Prisma транзакция) | Dev 1 ✅ | Server transactions, error handling |
 | 34 | Pinia store `seller.ts` — статистика продавца | Dev 1 | Pinia getters, вычисления |
 | 35 | `seller/dashboard.vue` — статистика (выручка, заказы) | Dev 1 | `useAsyncData`, серверные данные |
