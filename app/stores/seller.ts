@@ -8,11 +8,11 @@ export const useSellerStore = defineStore('seller', {
   }),
 
   getters: {
-    // средний чек = выручка / количество заказов
+    // средний чек = выручка / заказы с не отменёнными позициями
     avgOrder(): number {
-      const c = this.stats?.ordersCount ?? 0;
+      const c = this.stats?.ordersWithRevenue ?? 0;
       const r = this.stats?.revenue ?? 0;
-      return c > 0 ? r / c : 0;
+      return c > 0 ? Math.round(r / c) : 0;
     },
     // доля заказов по статусам
     statusShare(): (status: OrderStatus) => number {

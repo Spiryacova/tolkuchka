@@ -236,7 +236,7 @@
     { accessorKey: 'id', header: 'Заказ' },
     { accessorKey: 'buyerName', header: 'Покупатель' },
     { accessorKey: 'itemCount', header: 'Позиции · шт' },
-    { accessorKey: 'sellerTotal', header: 'Сумма' },
+    { accessorKey: 'sellerTotal', header: 'Сумма', meta: { class: { th: 'text-right', td: 'text-right' } } },
     { accessorKey: 'status', header: 'Статус' },
     { accessorKey: 'createdAt', header: 'Дата' },
   ];

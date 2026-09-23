@@ -76,7 +76,7 @@
                 :to="`/seller/orders/${row.original.id}`"
                 class="font-medium text-primary"
               >
-                #{{ row.original.id.slice(-6) }}
+                {{ formatOrderNumber(row.original.buyerNo, row.original.no) }}
               </ULink>
             </template>
             <template #buyerName-cell="{ row }">
@@ -169,6 +169,7 @@
   const emptyStats: SellerStats = {
     revenue: 0,
     ordersCount: 0,
+    ordersWithRevenue: 0,
     productsCount: 0,
     lowStock: [],
     inactive: [],
@@ -195,7 +196,7 @@
   });
 
   const metrics = computed(() => [
-    { label: 'Выручка', value: formatPrice(data.value.revenue), hint: 'по не-отменённым заказам' },
+    { label: 'Выручка', value: formatPrice(data.value.revenue), hint: 'по не отменённым заказам' },
     { label: 'Заказы', value: String(data.value.ordersCount), hint: `${store.statusShare('DELIVERED')}% доставлено` },
     { label: 'Товары', value: String(data.value.productsCount), hint: 'всего в каталоге' },
     { label: 'Средний чек', value: formatPrice(store.avgOrder), hint: 'в среднем на заказ' },

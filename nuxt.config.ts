@@ -60,7 +60,11 @@ export default defineNuxtConfig({
   icon: {
     provider: 'server',
     serverBundle: {
-      collections: ['heroicons'],
+      collections: ['heroicons', 'lucide'],
+    },
+    clientBundle: {
+      scan: true,
+      icons: ['i-heroicons:bars-3', 'i-heroicons:bars-3-bottom-right'],
     },
   },
   nitro: {

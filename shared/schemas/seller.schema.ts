@@ -4,6 +4,7 @@ import { orderStatusSchema } from './order.schema';
 export const sellerStatsSchema = z.object({
   revenue: z.number().nonnegative(), // выручка по позициям в не отмененных заказах
   ordersCount: z.number().int().nonnegative(), // число разных заказов
+  ordersWithRevenue: z.number().int().nonnegative(), // заказы с ≥1 не-отменённой позицией — делитель среднего чека
   productsCount: z.number().int().nonnegative(), // число товаров в каталоге
   lowStock: z.array( // товары с низким количеством на складе
     z.object({
@@ -18,6 +19,8 @@ export const sellerStatsSchema = z.object({
   recentOrders: z.array( // последние заказы
     z.object({
       id: z.string(),
+      buyerNo: z.number().int(),
+      no: z.number().int(),
       buyerName: z.string().nullable(),
       status: orderStatusSchema,
       sellerTotal: z.number().nonnegative(),
