@@ -21,30 +21,24 @@ const LOW_STOCK_THRESHOLD = 5;
 export default defineEventHandler<object, EventHandlerResponse<SellerStats>>(async (event) => {
   const sellerId = await requireSeller(event);
 
-  // Все заказы, где есть позиции этого продавца (без дублей по orderId).
-  const orderIds = (await prisma.orderItem.findMany({
-    where: { sellerId },
-    select: { orderId: true },
-    distinct: ['orderId'],
-  })).map((r) => r.orderId);
+  // Заказ = один продавец: считаем напрямую по Order.status (это агрегат позиций).
+  const ordersCount = await prisma.order.count({ where: { sellerId } });
 
-  const ordersCount = orderIds.length;
-
-  // Счётчики по статусам: один groupBy вместо отдельного запроса на статус.
+  // Счётчики по статусам — та же формула, что в GET /api/sellers/orders.
   const statusCounts = Object.fromEntries(ORDER_STATUSES.map((s) => [s, 0])) as Record<OrderStatus, number>;
   if (ordersCount > 0) {
     const grouped = await prisma.order.groupBy({
       by: ['status'],
-      where: { id: { in: orderIds } },
+      where: { sellerId },
       _count: { _all: true },
     });
     for (const g of grouped) statusCounts[g.status] = g._count._all;
   }
 
-  // Выручка: сумма priceAtPurchase × quantity по не-отменённым заказам.
+  // Выручка: сумма priceAtPurchase × quantity по не отменённым позициям.
   const revenueItems = await prisma.orderItem.findMany({
-    where: { sellerId, order: { status: { not: 'CANCELLED' } } },
-    select: { productId: true, priceAtPurchase: true, quantity: true },
+    where: { sellerId, status: { not: 'CANCELLED' } },
+    select: { productId: true, priceAtPurchase: true, quantity: true, orderId: true },
   });
 
   let revenue = new Prisma.Decimal(0);
@@ -57,6 +51,8 @@ export default defineEventHandler<object, EventHandlerResponse<SellerStats>>(asy
     revenueByProduct.set(i.productId, (revenueByProduct.get(i.productId) ?? new Prisma.Decimal(0)).add(sum));
     soldByProduct.set(i.productId, (soldByProduct.get(i.productId) ?? 0) + i.quantity);
   }
+
+  const ordersWithRevenue = new Set(revenueItems.map((i) => i.orderId)).size;
 
   // Товары для блока "Внимание": низкий остаток ИЛИ скрыт - одним запросом.
   const products = await prisma.product.findMany({
@@ -91,17 +87,19 @@ export default defineEventHandler<object, EventHandlerResponse<SellerStats>>(asy
   const recentOrders: SellerStats['recentOrders'] = [];
   if (ordersCount > 0) {
     const orders = await prisma.order.findMany({
-      where: { id: { in: orderIds } },
+      where: { sellerId },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: {
-        buyer: { select: { name: true } },
+        buyer: { select: { name: true, customerNo: true } },
         items: { where: { sellerId }, select: { priceAtPurchase: true, quantity: true } },
       },
     });
     for (const o of orders) {
       recentOrders.push({
         id: o.id,
+        buyerNo: o.buyer?.customerNo ?? 0,
+        no: o.no,
         buyerName: o.buyer?.name ?? null,
         status: o.status,
         sellerTotal: Number(
@@ -114,6 +112,7 @@ export default defineEventHandler<object, EventHandlerResponse<SellerStats>>(asy
 
   return {
     revenue: Number(revenue),
+    ordersWithRevenue,
     ordersCount,
     productsCount,
     lowStock,

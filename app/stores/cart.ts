@@ -38,7 +38,9 @@ export const useCartStore = defineStore('cart', () => {
   let inflight: Promise<void> | null = null;
   const items = ref<CartItem[]>([]);
   const source = ref<CartSource>('idle');
-  const isLoading = ref(false);
+  // Стартуем в состоянии загрузки: иначе до onMounted(load) страницы
+  // /cart и /checkout рендерят «Корзина пуста» на первом пейнте.
+  const isLoading = ref(true);
   const isRevalidating = ref(false);
 
   watch(

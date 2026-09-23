@@ -7,7 +7,7 @@
       </div>
     </template>
 
-    <template v-else-if="error">
+    <template v-else-if="allFailed">
       <UEmpty
         icon="i-heroicons-exclamation-triangle"
         title="Не удалось загрузить заказы"
@@ -32,6 +32,22 @@
           Продавцы получили ваши заказы и свяжутся по доставке
         </p>
       </div>
+
+      <UAlert
+        v-if="failedCount > 0"
+        color="warning"
+        variant="subtle"
+        icon="i-heroicons-exclamation-triangle"
+        :title="`${pluralOrders(failedCount)} не отобразилось`"
+        description="Заказ мог оформиться — посмотрите в истории покупок"
+        class="mb-6"
+      >
+        <template #actions>
+          <UButton color="neutral" variant="ghost" size="sm" to="/account/orders">
+            К моим заказам
+          </UButton>
+        </template>
+      </UAlert>
 
       <ul class="flex flex-col gap-4">
         <li v-for="order in orders" :key="order.id">
@@ -85,7 +101,7 @@
   import type { BuyerOrderDetail } from '#shared/schemas/order.schema';
 
   definePageMeta({
-    middleware: ['auth'],
+    middleware: ['sidebase-auth'],
   });
 
   useSeoMeta({
@@ -115,14 +131,36 @@
   const requestFetch = useRequestFetch();
 
   // Каждый заказ подтягиваем отдельно: GET /api/orders/[id] отдаёт только свои заказы.
-  const { data: orders, pending, error } = await useAsyncData(
-    'checkout-success-orders',
+  // Ключ содержит payload (ids): разные оформления не делят кеш чужого набора id.
+  // allSettled — один сбойный GET не роняет страницу: упавшие считаем и показываем подсказку.
+  type SuccessResult = { orders: BuyerOrderDetail[]; total: number; failed: number };
+
+  const { data, pending } = await useAsyncData<SuccessResult>(
+    `checkout-success-${ids.value.join(',')}`,
     async () => {
       const list = ids.value;
-      if (list.length === 0) return [];
-      return Promise.all(list.map((id) => requestFetch<BuyerOrderDetail>(`/api/orders/${id}`)));
+      const results = await Promise.allSettled(
+        list.map((id) => requestFetch<BuyerOrderDetail>(`/api/orders/${id}`)),
+      );
+      const fulfilled = results
+        .filter((r): r is PromiseFulfilledResult<BuyerOrderDetail> => r.status === 'fulfilled')
+        .map((r) => r.value);
+      return { orders: fulfilled, total: list.length, failed: list.length - fulfilled.length };
     },
+    { default: () => ({ orders: [], total: 0, failed: 0 }) },
   );
+
+  const orders = computed(() => data.value?.orders ?? []);
+  const failedCount = computed(() => data.value?.failed ?? 0);
+  const allFailed = computed(() => failedCount.value > 0 && failedCount.value === (data.value?.total ?? 0));
+
+  function pluralOrders(count: number): string {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${count} заказ`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} заказа`;
+    return `${count} заказов`;
+  }
 
   function pluralCount(count: number): string {
     const mod10 = count % 10;

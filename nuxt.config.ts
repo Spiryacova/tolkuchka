@@ -37,6 +37,9 @@ export default defineNuxtConfig({
       })),
     ],
   },
+  robots: {
+    disallow: ['/api', '/api-docs', '/auth', '/account', '/seller', '/cart', '/palettes'],
+  },
   auth: {
     isEnabled: true,
     baseURL: '/api/auth',
@@ -60,7 +63,11 @@ export default defineNuxtConfig({
   icon: {
     provider: 'server',
     serverBundle: {
-      collections: ['heroicons'],
+      collections: ['heroicons', 'lucide'],
+    },
+    clientBundle: {
+      scan: true,
+      icons: ['i-heroicons:bars-3', 'i-heroicons:bars-3-bottom-right'],
     },
   },
   nitro: {

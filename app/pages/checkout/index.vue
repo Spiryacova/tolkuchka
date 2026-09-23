@@ -71,7 +71,7 @@
           <ul class="flex flex-col gap-3">
             <li v-for="line in lines" :key="line.id" class="flex items-start gap-3">
               <UAvatar :src="line.product.imageUrl ?? undefined" :alt="line.product.name" size="md" />
-              <div class="min-w-0 flex-1">
+              <div class="min-w-0 flex-1 truncate">
                 <NuxtLink
                   :to="`/products/${line.product.slug}`"
                   class="truncate text-sm font-medium hover:underline"
@@ -115,7 +115,7 @@
   } from '#shared/schemas/order.schema';
 
   definePageMeta({
-    middleware: ['auth'],
+    middleware: ['sidebase-auth'],
   });
 
   useSeoMeta({
@@ -146,6 +146,7 @@
   const submitting = ref(false);
 
   async function onSubmit(event: FormSubmitEvent<ShippingAddress>) {
+    if (submitting.value) return;
     submitting.value = true;
     try {
       const res = await $fetch<CheckoutCreated>('/api/orders', {
