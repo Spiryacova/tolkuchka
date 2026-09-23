@@ -6,7 +6,7 @@ import { categories, products } from '../shared/mocks/products';
 import type { Role } from '../server/generated/prisma/enums';
 
 // Подключение — тот же паттерн, что в server/utils/prisma.ts (Prisma 7 требует адаптер драйвера)
-const url = `postgresql://${process.env.PG_USER}:${process.env.PG_PASSWORD}@localhost:${process.env.PG_PORT}/${process.env.PG_DB}`;
+const url = process.env.DATABASE_URL ?? `postgresql://${process.env.PG_USER}:${process.env.PG_PASSWORD}@localhost:${process.env.PG_PORT}/${process.env.PG_DB}`;
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 
 // Тестовые продавцы, как в моках (slug совпадает с p.seller.slug)
