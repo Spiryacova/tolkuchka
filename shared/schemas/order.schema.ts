@@ -160,3 +160,33 @@ export const buyerOrderDetailSchema = z.object({
 });
 
 export type BuyerOrderDetail = z.output<typeof buyerOrderDetailSchema>;
+
+export const buyerOrdersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  perPage: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+export type BuyerOrdersQuery = z.output<typeof buyerOrdersQuerySchema>;
+
+export const buyerOrderSummarySchema = z.object({
+  id: z.string(),
+  no: z.number().int(),
+  buyerNo: z.number().int(),
+  status: orderStatusSchema,
+  total: z.number().nonnegative(),
+  itemCount: z.number().int().positive(),
+  totalQuantity: z.number().int().positive(),
+  sellerName: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export type BuyerOrderSummary = z.output<typeof buyerOrderSummarySchema>;
+
+export const buyerOrderListResponseSchema = z.object({
+  items: z.array(buyerOrderSummarySchema),
+  page: z.number().int(),
+  perPage: z.number().int(),
+  total: z.number().int().nonnegative(),
+});
+
+export type BuyerOrderListResponse = z.output<typeof buyerOrderListResponseSchema>;

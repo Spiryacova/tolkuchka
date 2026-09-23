@@ -99,6 +99,11 @@
 
   const accountItems = computed(() => [
     {
+      label: 'Мои заказы',
+      icon: 'i-heroicons-shopping-bag',
+      to: '/account/orders',
+    },
+    {
       label: 'Настройки',
       icon: 'i-heroicons-cog-6-tooth',
       to: '/account/settings',
