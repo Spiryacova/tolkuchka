@@ -93,13 +93,6 @@
         </UCard>
 
         <UCard>
-          <ul class="flex flex-col gap-2">
-            <li v-for="item in order.items" :key="item.id" class="flex justify-between gap-3 text-sm">
-              <span class="min-w-0 truncate text-muted">{{ item.name }}</span>
-              <span class="shrink-0">{{ formatPrice(item.priceAtPurchase * item.quantity) }}</span>
-            </li>
-          </ul>
-          <USeparator class="my-3" />
           <div class="flex items-baseline justify-between">
             <span class="font-semibold">Итого</span>
             <span class="text-xl font-bold">{{ formatPrice(order.total) }}</span>
