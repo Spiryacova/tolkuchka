@@ -7,6 +7,7 @@ export const catalogQuerySchema = z.object({
   priceMin: z.coerce.number().int().min(0).optional(),
   priceMax: z.coerce.number().int().min(0).optional(),
   sort: z.enum(['relevance', 'priceAsc', 'priceDesc', 'rating']).default('relevance'),
+  discount: z.union([z.literal('true'), z.literal('false')]).transform((v) => v === 'true').optional(),
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(24).default(12),
 });

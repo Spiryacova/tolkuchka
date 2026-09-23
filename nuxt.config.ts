@@ -37,6 +37,9 @@ export default defineNuxtConfig({
       })),
     ],
   },
+  robots: {
+    disallow: ['/api', '/api-docs', '/auth', '/account', '/seller', '/cart', '/palettes'],
+  },
   auth: {
     isEnabled: true,
     baseURL: '/api/auth',

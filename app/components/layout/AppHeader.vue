@@ -1,17 +1,18 @@
 <template>
   <UHeader
     title="Толкучка"
-    to="/products"
+    to="/"
     :toggle="false"
     :ui="{
       left: 'lg:flex-none',
       right: 'lg:flex-none',
       center: 'flex-1',
+      root: 'h-auto lg:h-(--ui-header-height)',
     }"
   >
     <template #left>
       <div class="flex items-center gap-2">
-        <ULink to="/products" class="flex items-center gap-2 text-lg font-bold">
+        <ULink to="/" class="flex items-center gap-2 text-lg font-bold">
           <UIcon name="i-heroicons-shopping-bag" class="text-primary" />
           <span>Толкучка</span>
         </ULink>
