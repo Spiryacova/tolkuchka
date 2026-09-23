@@ -28,7 +28,7 @@
           description="Оформите первый заказ — и он появится в этой истории."
         >
           <template #actions>
-            <UButton color="primary" variant="soft" icon="i-heroicons-shopping-cart" to="/catalog">
+            <UButton color="primary" variant="soft" icon="i-heroicons-shopping-cart" to="/products">
               Перейти в каталог
             </UButton>
           </template>
@@ -92,7 +92,7 @@
   import type { BuyerOrderListResponse, BuyerOrderSummary } from '#shared/schemas/order.schema';
 
   definePageMeta({
-    middleware: ['auth'],
+    middleware: ['sidebase-auth'],
     robots: false,
   });
 

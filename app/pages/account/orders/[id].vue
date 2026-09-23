@@ -120,7 +120,7 @@
   import type { BuyerOrderDetail } from '#shared/schemas/order.schema';
 
   definePageMeta({
-    middleware: ['auth'],
+    middleware: ['sidebase-auth'],
     robots: false,
   });
 
