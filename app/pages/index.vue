@@ -140,7 +140,7 @@
   const deals = computed<Product[]>(() => dealsData.value?.products ?? []);
   const promoSlides = computed<Product[]>(() => deals.value.slice(0, 3));
   const discountItems = computed<Product[]>(() =>
-    deals.value.slice(3).filter((p) => !popularIds.value.has(p.id)),
+    deals.value.slice(3).filter((p) => !popularIds.value.has(p.id)).slice(0, 8),
   );
 
   const newItems = computed<Product[]>(() => newData.value?.products ?? []);
