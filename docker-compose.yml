@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:17-alpine # Образ PostgreSQL 17 Alpine
+    container_name: marketplace-db # Имя контейнера
+    restart: unless-stopped # Автоперезапуск, кроме ручной остановки
+    environment:
+      POSTGRES_USER: ${PG_USER} # Имя пользователя БД
+      POSTGRES_PASSWORD: ${PG_PASSWORD} # Пароль
+      POSTGRES_DB: ${PG_DB} # Имя базы данных
+    ports:
+      - '${PG_PORT}:5432' # Порт: хост:контейнер
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Данные сохраняются между перезапусками
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s # Проверка каждые 5 сек
+      timeout: 5s # Таймаут ответа
+      retries: 5 # Попыток до "здоров"
+
+  pgadmin:
+    image: dpage/pgadmin4 # Веб-интерфейс для управления БД
+    container_name: marketplace-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PG_ADMIN_LOGIN}
+      PGADMIN_DEFAULT_PASSWORD: ${PG_ADMIN_PASSWORD}
+    ports:
+      - '${PG_ADMIN_PORT}:80' # Доступен на http://localhost:PG_ADMIN_PORT
+    depends_on: # Запускается ПОСЛЕ postgres
+      postgres:
+        condition: service_healthy # Ждёт пока postgres будет "здоров"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  pgdata: # Именованный том для данных PostgreSQL
+  pgadmin_data: # Для данных pgAdmin

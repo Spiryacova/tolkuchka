@@ -19,6 +19,10 @@ node_modules/
 # IDE
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+
+.eslintcache
+
 .idea/
 .fleet/
 *.suo
@@ -50,4 +54,8 @@ generated/
 
 # Team internal docs
 AGENTS.md
-.team/
+.agents
+skills-lock.json
+.team/CI-CD.md
+/app/generated/prisma
+server/generated/

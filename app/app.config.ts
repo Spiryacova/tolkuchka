@@ -1,0 +1,60 @@
+export default defineAppConfig({
+  ui: {
+    colors: {
+      primary: 'emerald',
+      secondary: 'blue',
+      neutral: 'slate',
+    },
+    icons: {
+      close: 'i-heroicons-x-mark',
+      copy: 'i-heroicons-document-duplicate',
+      copyCheck: 'i-heroicons-clipboard-document-check',
+      dark: 'i-heroicons-moon',
+      drag: 'i-heroicons-bars-4',
+      ellipsis: 'i-heroicons-ellipsis-horizontal',
+      error: 'i-heroicons-x-circle',
+      external: 'i-heroicons-arrow-up-right',
+      eye: 'i-heroicons-eye',
+      eyeOff: 'i-heroicons-eye-slash',
+      file: 'i-heroicons-document',
+      folder: 'i-heroicons-folder',
+      folderOpen: 'i-heroicons-folder-open',
+      hash: 'i-heroicons-hashtag',
+      info: 'i-heroicons-information-circle',
+      light: 'i-heroicons-sun',
+      loading: 'i-heroicons-arrow-path',
+      menu: 'i-heroicons-bars-3',
+      minus: 'i-heroicons-minus',
+      panelClose: 'i-heroicons-bars-3-bottom-right',
+      panelOpen: 'i-heroicons-bars-3-bottom-left',
+      plus: 'i-heroicons-plus',
+      reload: 'i-heroicons-arrow-path',
+      search: 'i-heroicons-magnifying-glass',
+      stop: 'i-heroicons-stop',
+      star: 'i-heroicons-star',
+      success: 'i-heroicons-check-circle',
+      system: 'i-heroicons-computer-desktop',
+      tip: 'i-heroicons-light-bulb',
+      upload: 'i-heroicons-arrow-up-tray',
+      warning: 'i-heroicons-exclamation-triangle',
+    },
+    button: {
+      defaultVariants: {
+        color: 'primary',
+        variant: 'solid',
+        size: 'md',
+      },
+    },
+    alert: {
+      defaultVariants: {
+        color: 'error',
+        variant: 'subtle',
+      },
+    },
+    formField: {
+      slots: {
+        label: 'block text-xs font-medium text-muted',
+      },
+    },
+  },
+});

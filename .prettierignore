@@ -1,0 +1,13 @@
+.nuxt/
+.output/
+.nitro/
+.data/
+
+node_modules/
+
+.team/
+AGENTS.md
+
+dist/
+coverage/
+package-lock.json

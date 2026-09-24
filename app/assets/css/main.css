@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+@import '@nuxt/ui';
+@import '@fontsource-variable/inter';
+
+@theme {
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ui-radius: 0.375rem;
+
+  /* поверхности и текст */
+  --color-page: var(--ui-bg); /* bg-page        */
+  --color-content: var(--ui-text); /* text-content   */
+  --color-muted: var(--ui-text-muted); /* text-muted     */
+  --color-dimmed: var(--ui-text-dimmed); /* text-dimmed    */
+  --color-toned: var(--ui-text-toned); /* text-toned     */
+  --color-subtle: var(--ui-bg-muted); /* bg-subtle      */
+  --color-elevated: var(--ui-bg-elevated); /* bg-elevated  */
+  --color-line: var(--ui-border); /* border-line    */
+  --color-line-muted: var(--ui-border-muted); /* border-line-muted */
+}
+
+/* Вариант A: точные токены из DESIGN-SYSTEM §2 + action-цвет primary.
+   Значения вне слоёв — переопределяют дефолты Nuxt UI.
+   light: text = slate-900 (#111827), primary = emerald-700 (белый текст 5.5:1)
+   dark:  text = slate-50 (#f8fafc), border = slate-700, primary = emerald-600 (светлее для тёмной темы) */
+:root,
+.light {
+  --ui-text: #111827;
+  --ui-primary: var(--ui-color-primary-700);
+}
+
+.dark {
+  --ui-text: #f8fafc;
+  --ui-border: #334155;
+  --ui-primary: var(--ui-color-primary-600);
+}
+
+@layer base {
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}

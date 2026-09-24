@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../server/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?   @map("password_hash") // bcrypt-хеш
+  name          String?
+  customerNo    Int       @default(autoincrement()) @unique @map("customer_no")
+  slug          String?   @unique // публичный профиль продавца
+  bio           String? // описание магазина продавца
+  avatarUrl     String?   @map("avatar_url") // аватар пользователя
+  role          Role      @default(BUYER) // BUYER/SELLER/ADMIN
+  emailVerified DateTime? @map("email_verified") // подтверждение email (next-auth, будущее восстановление)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts     Account[]
+  sessions     Session[]
+  products     Product[]
+  cartItems    CartItem[]
+  buyerOrders  Order[]     @relation("BuyerOrders")
+  sellerOrders Order[]     @relation("SellerOrders")
+  soldItems    OrderItem[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refreshToken      String? @map("refresh_token")
+  accessToken       String? @map("access_token")
+  expiresAt         Int?    @map("expires_at")
+  tokenType         String? @map("token_type")
+  scope             String?
+  idToken           String? @map("id_token")
+  sessionState      String? @map("session_state")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Category {
+  id           String   @id @default(cuid())
+  slug         String   @unique // URL-идентификатор: /categories/:slug
+  name         String // отображаемое имя категории
+  imageUrl     String?  @map("image_url")
+  productCount Int      @default(0) @map("product_count") // счётчик товаров — без count-запроса на список
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  products Product[] // товары категории (обратная связь)
+
+  @@map("categories")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  sellerId    String   @map("seller_id") // продавец — User с ролью SELLER
+  categoryId  String   @map("category_id") // категория каталога
+  name        String // название товара (контракт: shared/schemas/product.schema.ts)
+  slug        String   @unique // URL-идентификатор: /products/:slug
+  description String?
+  price       Decimal  @db.Decimal(10, 2) // текущая цена (Decimal — деньги без потери точности)
+  oldPrice    Decimal? @map("old_price") @db.Decimal(10, 2)
+  rating      Float?
+  images      String[] // фото в public/images/products; images[0] = главное
+  stock       Int      @default(0) // остаток на складе (0 = нет в наличии)
+  isActive    Boolean  @default(true) @map("is_active") // скрыть из каталога без удаления
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  seller     User        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  category   Category    @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+
+  cartItems CartItem[]
+
+  @@index([categoryId]) // главный сценарий: фильтр по категории
+  @@index([sellerId]) // кабинет продавца: его товары
+  @@map("products")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  no              Int         @default(autoincrement()) @unique @map("no")
+  buyerId         String      @map("buyer_id")
+  total           Decimal     @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING)
+  shippingAddress Json?       @map("shipping_address")
+  checkoutGroupId String?     @map("checkout_group_id") // группа покупки: все заказы одного оформления
+  sellerId        String     @map("seller_id")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  buyer  User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller User       @relation("SellerOrders", fields: [sellerId], references: [id])
+  items  OrderItem[]
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([checkoutGroupId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String      @id @default(cuid())
+  orderId         String      @map("order_id")
+  productId       String      @map("product_id")
+  sellerId        String      @map("seller_id")
+  quantity        Int
+  priceAtPurchase Decimal     @map("price_at_purchase") @db.Decimal(10, 2)
+  status          OrderStatus @default(PENDING) // статус по товару — источник истины
+  statusUpdatedAt DateTime?   @map("status_updated_at")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+  seller  User    @relation(fields: [sellerId], references: [id])
+
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}

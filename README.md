@@ -73,3 +73,27 @@ bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+
+## Docker
+
+Нужно создать .env файл в корне проекта (либо открыть имеющийся) и заполнить следующие переменные:
+
+Порты для postgres и pgAdmin (pgAdmin по идее дополнительно ставить не надо, он в докер сам скачается-подтянется), доступ к pgAdmin через браузер будет через указанный вами PG_ADMIN_PORT
+
+- PG_PORT
+- PG_ADMIN_PORT
+
+Пользователь, пароль и база для postgres
+
+- PG_USER
+- PG_PASSWORD
+- PG_DB
+
+Логин и пароль для входа в pgAdmin
+
+- PG_ADMIN_LOGIN
+- PG_ADMIN_PASSWORD
+
+Чтобы поднять контейнер: `docker compose up -d` (-d даст в этом же терминале вводить новые команды)
+
+Выключить контейнер: `docker compose down`, либо для полного очищения volume'ов (сохраненных между запусками контейнеров данных) `docker compose down -v`
